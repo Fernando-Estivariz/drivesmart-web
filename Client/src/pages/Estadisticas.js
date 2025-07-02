@@ -25,8 +25,8 @@ const Estadisticas = () => {
                 console.log("Datos obtenidos del backend:", data)
 
                 // Filtrar los datos por restricciones
-                const prohibidos = data.filter((item) => item.restriction === "Prohibido estacionar")
-                const tarifados = data.filter((item) => item.restriction === "Estacionamiento Tarifado")
+                const prohibidos = data.filter((item) => item.restriction === "ESTACIONAMIENTO PROHIBIDO")
+                const tarifados = data.filter((item) => item.restriction === "ESTACIONAMIENTO TARIFADO")
 
                 console.log("Datos Prohibidos Estacionar:", prohibidos)
                 console.log("Datos Estacionamiento Tarifado:", tarifados)
