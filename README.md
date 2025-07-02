@@ -84,7 +84,7 @@ En tu navegador abre:
 <p align="center">
   <img src="./assets/login.png" alt="Pantalla Login" width="300" />
   <img src="./assets/dashboard.png" alt="Pantalla Dashboard" width="300" />
-  <img src="./assets/mapeadoestacionamientos.png.png" alt="Mapa interactivo" width="300" />
+  <img src="./assets/mapeadoestacionamientos.png" alt="Mapa interactivo" width="300" />
   <img src="./assets/REPORTES.png" alt="Mapa Estadisticas" width="300" />
 </p>
 
