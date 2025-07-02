@@ -81,11 +81,11 @@ En tu navegador abre:
 
 ## 📸 Capturas
 
-Coloca tus capturas de pantalla en `assets/` y agrégalas así:
-
 <p align="center">
-  <img src="./assets/screenshot1.png" alt="Pantalla principal" width="300" />
-  <img src="./assets/screenshot2.png" alt="Mapa interactivo" width="300" />
+  <img src="./assets/login.png" alt="Pantalla principal" width="300" />
+  <img src="./assets/dashboard.png" alt="Mapa interactivo" width="300" />
+  <img src="./assets/mapeadoestacionamientos.png.png" alt="Mapa interactivo" width="300" />
+  <img src="./assets/REPORRTES.png" alt="Mapa interactivo" width="300" />
 </p>
 
 ---
