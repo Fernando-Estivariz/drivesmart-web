@@ -12,3 +12,8 @@ server/dist/
 # Archivos del sistema
 .DS_Store
 Thumbs.db
+
+# Archivos que no se deben subir
+insert_mapeado.js
+mapeado_estacionamientos.json
+
