@@ -82,10 +82,10 @@ En tu navegador abre:
 ## 📸 Capturas
 
 <p align="center">
-  <img src="./assets/login.png" alt="Pantalla principal" width="300" />
-  <img src="./assets/dashboard.png" alt="Mapa interactivo" width="300" />
+  <img src="./assets/login.png" alt="Pantalla Login" width="300" />
+  <img src="./assets/dashboard.png" alt="Pantalla Dashboard" width="300" />
   <img src="./assets/mapeadoestacionamientos.png.png" alt="Mapa interactivo" width="300" />
-  <img src="./assets/REPORRTES.png" alt="Mapa interactivo" width="300" />
+  <img src="./assets/REPORRTES.png" alt="Mapa Estadisticas" width="300" />
 </p>
 
 ---
