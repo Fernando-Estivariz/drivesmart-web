@@ -3,10 +3,8 @@ const cors = require("cors");
 const pool = require("./database")
 var app = express();
 const compression = require('compression');
-const app = express();
-const PORT = process.env.PORT || 4000;
-
-// CORS: ajusta a tus URLs de front (dev y prod)
+app.use(compression());
+app.use(express.json());
 app.use(cors({
     origin: [
         'http://localhost:3000',
@@ -14,9 +12,7 @@ app.use(cors({
     ]
 }));
 
-app.use(compression());
-app.use(express.json());
-
+const PORT = process.env.PORT || 4000;
 
 //VALIDACION DEL LOGIN CON LA BD
 app.post('/login', (req, res) => {
