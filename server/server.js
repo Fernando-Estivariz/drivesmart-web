@@ -16,6 +16,7 @@ const PORT = process.env.PORT || 4000;
 
 //VALIDACION DEL LOGIN CON LA BD
 app.post('/login', (req, res) => {
+    console.log('▶️  /login body:', req.body)  
     const sql = "SELECT * FROM usuarios WHERE email= $1 AND password= $2";
     const VALUES = [
         req.body.username,
