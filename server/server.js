@@ -7,6 +7,7 @@ app.use(compression());
 app.use(express.json());
 app.use(cors());
 
+const PORT = process.env.PORT || 4000;
 
 //VALIDACION DEL LOGIN CON LA BD
 app.post('/login',(req, res)=> {
@@ -175,6 +176,6 @@ app.delete('/mapeado/:id', async (req, res) => {
 });
 
 
-const PORT = process.env.PORT || 4000;
+
 app.listen(PORT, () => console.log(`server on port ${PORT}`));
 
