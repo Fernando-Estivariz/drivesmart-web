@@ -66,7 +66,7 @@ app.delete('/usuarios/:id', async (req, res) => {
 //CARGADO DE DATOS
 app.get('/mapeado', async (req, res) => {
     try {
-        const result = await pool.query('SELECT id, type, ST_AsGeoJSON(geometry) as geometry, restriccion FROM mapeado');
+        const result = await pool.query('SELECT id, type, ST_AsGeoJSON(geometry) as geometry, restriccion FROM public.mapeado');
         const mapeados = result.rows.map(row => {
             // Invierte las coordenadas y elimina un nivel de anidamiento
             let latlngs;
@@ -113,7 +113,7 @@ app.get('/mapeado', async (req, res) => {
         geometryWKT = `POINT(${lng} ${lat})`;
     }
 
-    const sql = "INSERT INTO mapeado (id, type, geometry, restriccion) VALUES ($1, $2, ST_Multi(ST_GeomFromText($3, 4326)), $4)";
+    const sql = "INSERT INTO public.mapeado (id, type, geometry, restriccion) VALUES ($1, $2, ST_Multi(ST_GeomFromText($3, 4326)), $4)";
     const VALUES = [
         id,
         type,
@@ -147,7 +147,7 @@ app.put('/mapeado/:id', async (req, res) => {
             geometryWKT = `POLYGON((${ringWKT}))`;
         }
 
-        const sql = "UPDATE mapeado SET type = $1, geometry = ST_Multi(ST_GeomFromText($2, 4326)) WHERE id = $3";
+        const sql = "UPDATE public.mapeado SET type = $1, geometry = ST_Multi(ST_GeomFromText($2, 4326)) WHERE id = $3";
         const VALUES = [
             type,
             geometryWKT,
@@ -165,7 +165,7 @@ app.put('/mapeado/:id', async (req, res) => {
 app.delete('/mapeado/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const sql = "DELETE FROM mapeado WHERE id = $1";
+        const sql = "DELETE FROM public.mapeado WHERE id = $1";
         await pool.query(sql, [id]);
         res.json('Mapeado eliminado');
     } catch (err) {
@@ -175,6 +175,6 @@ app.delete('/mapeado/:id', async (req, res) => {
 });
 
 
-app.listen(4000, () => console.log("server on localhost:4000"));
-
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => console.log(`server on port ${PORT}`));
 

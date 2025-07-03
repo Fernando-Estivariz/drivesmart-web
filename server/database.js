@@ -8,6 +8,8 @@ const pool = new Pool({
   host: process.env.DB_HOST,
   port:   parseInt(process.env.DB_PORT, 10),
   database: process.env.DB_DATABASE,
+  // fuerza a usar el esquema public
+  options: "-c search_path=public"
 });
 
 pool.connect()
