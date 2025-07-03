@@ -47,7 +47,7 @@ const MapaEstacionamientos = () => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const response = await axios.get("http://localhost:4000/mapeado");
+                const response = await axios.get("https://drivesmart-backend-2wnj.onrender.com:4000/mapeado");
                 const data = response.data.filter((layer) => layer.type === "polyline");
                 setMapLayers(data);
             } catch (error) {
