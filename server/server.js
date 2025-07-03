@@ -1,6 +1,6 @@
-const express= require("express");
-const cors=require("cors");
-const pool=require("./database")
+const express = require("express");
+const cors = require("cors");
+const pool = require("./database")
 var app = express();
 const compression = require('compression');
 app.use(compression());
@@ -9,16 +9,18 @@ app.use(cors());
 
 const PORT = process.env.PORT || 4000;
 
+
+
 //VALIDACION DEL LOGIN CON LA BD
-app.post('/login',(req, res)=> {
-    const sql="SELECT * FROM usuarios WHERE email= $1 AND password= $2";
-    const VALUES =[
+app.post('/login', (req, res) => {
+    const sql = "SELECT * FROM usuarios WHERE email= $1 AND password= $2";
+    const VALUES = [
         req.body.username,
         req.body.password
     ]
-    pool.query(sql, VALUES, (err, data)=>{
-        if(err) return res.json("Login Failed");
-        if(data.rows.length === 0) return res.json("Invalid username or password");
+    pool.query(sql, VALUES, (err, data) => {
+        if (err) return res.json("Login Failed");
+        if (data.rows.length === 0) return res.json("Invalid username or password");
         return res.json("Login Successful");
     })
 })
@@ -76,8 +78,8 @@ app.get('/mapeado', async (req, res) => {
             } else {
                 latlngs = JSON.parse(row.geometry).coordinates[0].map(coord => [coord[1], coord[0]]);
             }
-            if(row.type == 'marker'){
-                latlngs=JSON.parse(row.geometry).coordinates;
+            if (row.type == 'marker') {
+                latlngs = JSON.parse(row.geometry).coordinates;
             }
             return {
                 id: row.id,
@@ -93,8 +95,8 @@ app.get('/mapeado', async (req, res) => {
     }
 });
 
- //INSERTAR
- app.post('/mapeado', (req, res) => {
+//INSERTAR
+app.post('/mapeado', (req, res) => {
     const { id, latlngs, type, restriction } = req.body;
     let geometryWKT;
 
@@ -109,7 +111,7 @@ app.get('/mapeado', async (req, res) => {
         }
         const ringWKT = ring.map(point => `${point.lng} ${point.lat}`).join(', ');
         geometryWKT = `POLYGON((${ringWKT}))`;
-    } else if(type === "marker"){
+    } else if (type === "marker") {
         const { lat, lng } = latlngs[0];  // Para el marcador, se espera un array con un solo objeto { lat, lng }
         geometryWKT = `POINT(${lng} ${lat})`;
     }
@@ -175,7 +177,7 @@ app.delete('/mapeado/:id', async (req, res) => {
     }
 });
 
+// Para que no devuelva 404 en la raíz:
+app.get('/', (req,res) => res.send('🚀 DriveSmart API up!'));
 
-
-app.listen(PORT, () => console.log(`server on port ${PORT}`));
-
+app.listen(PORT, () => console.log(`Server on port ${PORT}`));
