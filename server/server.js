@@ -24,6 +24,7 @@ app.post('/login', (req, res) => {
     ]
     pool.query(sql, VALUES, (err, data) => {
         if (err) return res.json("Login Failed");
+        console.log('🗃️  /login rows:', data.rows);
         if (data.rows.length === 0) return res.json("Invalid username or password");
         return res.json("Login Successful");
     })
