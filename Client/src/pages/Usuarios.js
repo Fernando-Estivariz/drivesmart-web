@@ -18,13 +18,13 @@ export function Usuarios() {
     const [modal, setModal] = useState(false)
 
     const obtenerUsuarios = async () => {
-        const res = await axios.get("https://drivesmart-backend-2wnj.onrender.com/usuarios")
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/usuarios`)
         setUsuarios(res.data)
     }
 
     const insertarUsuario = async () => {
         try {
-            const res = await axios.post("https://drivesmart-backend-2wnj.onrender.com/usuarios", usuarioSeleccionado)
+            const res = await axios.post(`${process.env.REACT_APP_API_URL}/usuarios`, usuarioSeleccionado)
             setUsuarios(usuarios.concat(res.data))
             abrirCerrarModal()
         } catch (error) {
@@ -33,7 +33,7 @@ export function Usuarios() {
     }
 
     const actualizarUsuario = async () => {
-        const res = await axios.put("https://drivesmart-backend-2wnj.onrender.com/usuarios/" + usuarioSeleccionado.id_user, usuarioSeleccionado)
+        const res = await axios.put(`${process.env.REACT_APP_API_URL}/usuarios/` + usuarioSeleccionado.id_user, usuarioSeleccionado)
         const dataAuxiliar = usuarios.map((usuario) =>
             usuario.id_user === usuarioSeleccionado.id_user ? res.data : usuario,
         )
@@ -42,7 +42,7 @@ export function Usuarios() {
     }
 
     const eliminarUsuario = async () => {
-        await axios.delete("https://drivesmart-backend-2wnj.onrender.com/usuarios/" + usuarioSeleccionado.id_user)
+        await axios.delete(`${process.env.REACT_APP_API_URL}/usuarios/` + usuarioSeleccionado.id_user)
         setUsuarios(usuarios.filter((usuario) => usuario.id_user !== usuarioSeleccionado.id_user))
     }
 

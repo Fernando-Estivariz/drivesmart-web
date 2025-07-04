@@ -42,7 +42,7 @@ const Login = ({ onLogin }) => {
 
         setIsLoading(true)
         axios
-            .post("https://drivesmart-backend-2wnj.onrender.com/login", { username, password })
+            .post(`${process.env.REACT_APP_API_URL}/login`, { username, password })
             .then((response) => {
                 console.log("Response:", response.data)
                 if (response.data === "Login Successful") {

@@ -19,7 +19,7 @@ const Estadisticas = () => {
         const fetchData = async () => {
             setIsLoading(true)
             try {
-                const response = await axios.get("https://drivesmart-backend-2wnj.onrender.com/mapeado")
+                const response = await axios.get(`${process.env.REACT_APP_API_URL}/mapeado`)
                 const data = response.data
 
                 console.log("Datos obtenidos del backend:", data)
