@@ -63,7 +63,7 @@ const MapaRestricciones = () => {
         const fetchData = async () => {
             setIsLoading(true)
             try {
-                const response = await axios.get("http://localhost:4000/mapeado")
+                const response = await axios.get("https://drivesmart-backend-2wnj.onrender.com/mapeado")
                 const data = response.data.filter((layer) => layer.type === "polygon")
                 setMapLayers(data)
             } catch (error) {
@@ -101,7 +101,7 @@ const MapaRestricciones = () => {
             }
 
             try {
-                await axios.put(`http://localhost:4000/mapeado/${layer._leaflet_id}`, updatedLayer)
+                await axios.put(`https://drivesmart-backend-2wnj.onrender.com/mapeado/${layer._leaflet_id}`, updatedLayer)
                 setMapLayers((prev) => prev.map((l) => (l.id === updatedLayer.id ? updatedLayer : l)))
             } catch (error) {
                 console.error("Error updating restricción:", error)
@@ -116,7 +116,7 @@ const MapaRestricciones = () => {
 
         Object.values(_layers).forEach(async (layer) => {
             try {
-                await axios.delete(`http://localhost:4000/mapeado/${layer._leaflet_id}`)
+                await axios.delete(`https://drivesmart-backend-2wnj.onrender.com/mapeado/${layer._leaflet_id}`)
                 setMapLayers((prev) => prev.filter((l) => l.id !== layer._leaflet_id))
             } catch (error) {
                 console.error("Error deleting restricción:", error)
@@ -132,7 +132,7 @@ const MapaRestricciones = () => {
 
         setIsLoading(true)
         try {
-            await axios.post("http://localhost:4000/mapeado", currentLayer)
+            await axios.post("https://drivesmart-backend-2wnj.onrender.com/mapeado", currentLayer)
             setMapLayers((prev) => [...prev, currentLayer])
             setModal(false)
             setCurrentLayer(null)
