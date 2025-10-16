@@ -14,6 +14,15 @@ const Login = ({ onLogin }) => {
     const navigate = useNavigate()
     const [showPassword, setShowPassword] = useState(false)
 
+    const common = {
+        headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        },
+        timeout: 15000,
+    };
+
     // Validar campos
     const validate = () => {
         const errors = {}
@@ -42,7 +51,7 @@ const Login = ({ onLogin }) => {
 
         setIsLoading(true)
         axios
-            .post(`${process.env.REACT_APP_API_URL}/login`, { username, password })
+            .post(`${process.env.REACT_APP_API_URL}/login`, { username, password }, common)
             .then((response) => {
                 console.log("Response:", response.data)
                 if (response.data === "Login Successful") {

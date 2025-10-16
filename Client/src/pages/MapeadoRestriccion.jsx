@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Sidebar } from ".././components/Sidebar"
-import MapaRestricciones from ".././components/MapaRestriciones"
+import { Sidebar } from "../components/Sidebar"
+import MapaRestricciones from "../components/MapaRestriciones"
 
 const MapeadoRestricciones = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -20,7 +20,7 @@ const MapeadoRestricciones = () => {
                 {/* Header Section */}
                 <div style={styles.header}>
                     <h1 style={styles.title}>
-                        <span style={styles.titleIcon}>🚦</span>
+                        <span style={styles.titleIcon}></span>
                         Mapeado de <span style={styles.titleAccent}>Restricciones</span> Vehiculares
                     </h1>
                 </div>

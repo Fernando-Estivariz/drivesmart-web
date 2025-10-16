@@ -3,9 +3,17 @@
 import { useState, useEffect } from "react"
 import styled from "styled-components"
 import axios from "axios"
-import { Sidebar } from ".././components/Sidebar"
+import { Sidebar } from "../components/Sidebar"
 
 export function Usuarios() {
+    const common = {
+        headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        },
+        timeout: 15000,
+    };
     const [usuarios, setUsuarios] = useState([])
     const [usuarioSeleccionado, setUsuarioSeleccionado] = useState({
         id_user: 0,
@@ -18,13 +26,13 @@ export function Usuarios() {
     const [modal, setModal] = useState(false)
 
     const obtenerUsuarios = async () => {
-        const res = await axios.get(`${process.env.REACT_APP_API_URL}/usuarios`)
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/usuarios`, common)
         setUsuarios(res.data)
     }
 
     const insertarUsuario = async () => {
         try {
-            const res = await axios.post(`${process.env.REACT_APP_API_URL}/usuarios`, usuarioSeleccionado)
+            const res = await axios.post(`${process.env.REACT_APP_API_URL}/usuarios`, usuarioSeleccionado, common)
             setUsuarios(usuarios.concat(res.data))
             abrirCerrarModal()
         } catch (error) {
@@ -33,7 +41,7 @@ export function Usuarios() {
     }
 
     const actualizarUsuario = async () => {
-        const res = await axios.put(`${process.env.REACT_APP_API_URL}/usuarios/` + usuarioSeleccionado.id_user, usuarioSeleccionado)
+        const res = await axios.put(`${process.env.REACT_APP_API_URL}/usuarios/` + usuarioSeleccionado.id_user, usuarioSeleccionado, common)
         const dataAuxiliar = usuarios.map((usuario) =>
             usuario.id_user === usuarioSeleccionado.id_user ? res.data : usuario,
         )
@@ -42,7 +50,7 @@ export function Usuarios() {
     }
 
     const eliminarUsuario = async () => {
-        await axios.delete(`${process.env.REACT_APP_API_URL}/usuarios/` + usuarioSeleccionado.id_user)
+        await axios.delete(`${process.env.REACT_APP_API_URL}/usuarios/` + usuarioSeleccionado.id_user, common)
         setUsuarios(usuarios.filter((usuario) => usuario.id_user !== usuarioSeleccionado.id_user))
     }
 

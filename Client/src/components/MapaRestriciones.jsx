@@ -7,64 +7,48 @@ import "leaflet/dist/leaflet.css"
 import "leaflet-draw/dist/leaflet.draw.css"
 import axios from "axios"
 
+const API_URL = process.env.REACT_APP_API_URL || "https://41e248bfedcf.ngrok-free.app"
+
 const MapaRestricciones = () => {
     const [mapLayers, setMapLayers] = useState([])
     const [center, setCenter] = useState({ lat: -17.39842096574417, lng: -66.15225245311389 })
     const [currentLayer, setCurrentLayer] = useState(null)
     const [modal, setModal] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
+    const nextDbIdRef = useRef(1)
+    const layerIdMapRef = useRef({})
     const ZOOM_LEVEL = 15
     const mapRef = useRef()
 
-    const getColorFromRestriction = (restriction) => {
-        switch (restriction) {
-            case "Lunes - Placas 1 y 2":
-                return "#ef4444" 
-            case "Martes - Placas 3 y 4":
-                return "#f97316" 
-            case "Miércoles - Placas 5 y 6":
-                return "#eab308" 
-            case "Jueves - Placas 7 y 8":
-                return "#22c55e" 
-            case "Viernes - Placas 9 y 0":
-                return "#3b82f6" 
-            default:
-                return "#ef4444" 
-        }
+    const common = {
+        headers: {
+            "ngrok-skip-browser-warning": "true",
+            Accept: "application/json",
+            "Content-Type": "application/json",
+        },
+        timeout: 15000,
     }
 
-    const getIconFromRestriction = (restriction) => {
-        switch (restriction) {
-            case "Lunes - Placas 1 y 2":
-                return "🚫"
-            case "Martes - Placas 3 y 4":
-                return "⚠️"
-            case "Miércoles - Placas 5 y 6":
-                return "🚦"
-            case "Jueves - Placas 7 y 8":
-                return "🛑"
-            case "Viernes - Placas 9 y 0":
-                return "🚨"
-            default:
-                return "📍"
-        }
+    const getColorFromRestriction = () => {
+        return "#ef4444" // Rojo para todas las restricciones vehiculares
     }
 
-    const getDayFromRestriction = (restriction) => {
-        if (restriction?.includes("Lunes")) return "LUN"
-        if (restriction?.includes("Martes")) return "MAR"
-        if (restriction?.includes("Miércoles")) return "MIÉ"
-        if (restriction?.includes("Jueves")) return "JUE"
-        if (restriction?.includes("Viernes")) return "VIE"
-        return "---"
+    const getIconFromRestriction = () => {
+        return "🚦" // Icono de semáforo para restricción vehicular
     }
 
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true)
             try {
-                const response = await axios.get(`${process.env.REACT_APP_API_URL}/mapeado`)
-                const data = response.data.filter((layer) => layer.type === "polygon")
+                const response = await axios.get(`${API_URL}/restricciones`, common)
+                const { data, nextId } = response.data
+
+                console.log("[v0] Frontend - Received data:", data.length, "restricciones")
+                console.log("[v0] Frontend - Next ID from backend:", nextId)
+
+                nextDbIdRef.current = nextId
+
                 setMapLayers(data)
             } catch (error) {
                 console.error("Error fetching restricciones:", error)
@@ -77,11 +61,19 @@ const MapaRestricciones = () => {
 
     const handleCreate = (e) => {
         const { layer } = e
+        const dbId = nextDbIdRef.current
+
+        console.log("[v0] Frontend - Creating new layer with ID:", dbId)
+
+        nextDbIdRef.current = nextDbIdRef.current + 1
+
+        layerIdMapRef.current[layer._leaflet_id] = dbId
+
         const newLayer = {
-            id: layer._leaflet_id,
+            id: dbId,
             type: "polygon",
             latlngs: layer.getLatLngs()[0].map((point) => ({ lat: point.lat, lng: point.lng })),
-            restriction: null,
+            restriction: "RESTRICCIÓN VEHICULAR",
         }
         setCurrentLayer(newLayer)
         setModal(true)
@@ -93,18 +85,32 @@ const MapaRestricciones = () => {
         } = e
 
         Object.values(_layers).forEach(async (layer) => {
-            const updatedLayer = {
-                id: layer._leaflet_id,
-                latlngs: layer.getLatLngs()[0].map((point) => ({ lat: point.lat, lng: point.lng })),
-                type: "polygon",
-                restriction: mapLayers.find((l) => l.id === layer._leaflet_id)?.restriction || null,
+            const dbId = layerIdMapRef.current[layer._leaflet_id]
+            const layerData = mapLayers.find((l) => l.id === dbId)
+
+            console.log("[v0] Frontend - Editing layer with Leaflet ID:", layer._leaflet_id, "DB ID:", dbId)
+
+            if (!layerData) {
+                console.error("[v0] Frontend - Layer not found for DB ID:", dbId)
+                return
             }
 
+            const updatedLayer = {
+                id: layerData.id,
+                latlngs: layer.getLatLngs()[0].map((point) => ({ lat: point.lat, lng: point.lng })),
+                type: "polygon",
+                restriction: layerData.restriction,
+            }
+
+            console.log("[v0] Frontend - Updating layer:", updatedLayer)
+
             try {
-                await axios.put(`${process.env.REACT_APP_API_URL}/mapeado/${layer._leaflet_id}`, updatedLayer)
+                await axios.put(`${API_URL}/restricciones/${layerData.id}`, updatedLayer, common)
                 setMapLayers((prev) => prev.map((l) => (l.id === updatedLayer.id ? updatedLayer : l)))
+                console.log("[v0] Frontend - Layer updated successfully")
             } catch (error) {
                 console.error("Error updating restricción:", error)
+                alert("Error al actualizar la restricción")
             }
         })
     }
@@ -115,27 +121,41 @@ const MapaRestricciones = () => {
         } = e
 
         Object.values(_layers).forEach(async (layer) => {
+            const dbId = layerIdMapRef.current[layer._leaflet_id]
+            const layerData = mapLayers.find((l) => l.id === dbId)
+
+            console.log("[v0] Frontend - Deleting layer with Leaflet ID:", layer._leaflet_id, "DB ID:", dbId)
+
+            if (!layerData) {
+                console.error("[v0] Frontend - Layer not found for DB ID:", dbId)
+                return
+            }
+
+            console.log("[v0] Frontend - Deleting layer:", layerData)
+
             try {
-                await axios.delete(`${process.env.REACT_APP_API_URL}/mapeado/${layer._leaflet_id}`)
-                setMapLayers((prev) => prev.filter((l) => l.id !== layer._leaflet_id))
+                await axios.delete(`${API_URL}/restricciones/${layerData.id}`, common)
+                setMapLayers((prev) => prev.filter((l) => l.id !== layerData.id))
+                delete layerIdMapRef.current[layer._leaflet_id]
+                console.log("[v0] Frontend - Layer deleted successfully")
             } catch (error) {
                 console.error("Error deleting restricción:", error)
+                alert("Error al eliminar la restricción")
             }
         })
     }
 
     const confirmModal = async () => {
-        if (!currentLayer.restriction) {
-            alert("Por favor selecciona un tipo de restricción")
-            return
-        }
-
         setIsLoading(true)
         try {
-            await axios.post(`${process.env.REACT_APP_API_URL}/mapeado`, currentLayer)
+            console.log("[v0] Frontend - Saving layer:", currentLayer)
+
+            await axios.post(`${API_URL}/restricciones`, currentLayer, common)
             setMapLayers((prev) => [...prev, currentLayer])
             setModal(false)
             setCurrentLayer(null)
+
+            console.log("[v0] Frontend - Layer saved successfully")
         } catch (error) {
             console.error("Error saving restricción:", error)
             alert("Error al guardar la restricción")
@@ -170,7 +190,7 @@ const MapaRestricciones = () => {
                                 marker: false,
                                 polygon: {
                                     shapeOptions: {
-                                        color: "#ff6b35",
+                                        color: "#ef4444",
                                         weight: 3,
                                         opacity: 0.8,
                                         fillOpacity: 0.3,
@@ -182,17 +202,22 @@ const MapaRestricciones = () => {
                             <Polygon
                                 key={layer.id}
                                 positions={layer.latlngs}
-                                color={getColorFromRestriction(layer.restriction)}
+                                color={getColorFromRestriction()}
                                 weight={3}
                                 opacity={0.8}
-                                fillColor={getColorFromRestriction(layer.restriction)}
+                                fillColor={getColorFromRestriction()}
                                 fillOpacity={0.3}
+                                eventHandlers={{
+                                    add: (e) => {
+                                        layerIdMapRef.current[e.target._leaflet_id] = layer.id
+                                        console.log("[v0] Frontend - Mapped Leaflet ID:", e.target._leaflet_id, "to DB ID:", layer.id)
+                                    },
+                                }}
                             >
                                 <Popup className="custom-popup">
                                     <div style={styles.popupContent}>
                                         <div style={styles.popupHeader}>
-                                            <div style={styles.popupIcon}>{getIconFromRestriction(layer.restriction)}</div>
-                                            <div style={styles.popupDay}>{getDayFromRestriction(layer.restriction)}</div>
+                                            <div style={styles.popupIcon}>{getIconFromRestriction()}</div>
                                         </div>
                                         <div style={styles.popupText}>
                                             <strong>{layer.restriction || "Sin restricción"}</strong>
@@ -213,23 +238,7 @@ const MapaRestricciones = () => {
                     <div style={styles.legendItems}>
                         <div style={styles.legendItem}>
                             <div style={{ ...styles.legendColor, backgroundColor: "#ef4444" }}></div>
-                            <span>Lunes - Placas 1 y 2</span>
-                        </div>
-                        <div style={styles.legendItem}>
-                            <div style={{ ...styles.legendColor, backgroundColor: "#f97316" }}></div>
-                            <span>Martes - Placas 3 y 4</span>
-                        </div>
-                        <div style={styles.legendItem}>
-                            <div style={{ ...styles.legendColor, backgroundColor: "#eab308" }}></div>
-                            <span>Miércoles - Placas 5 y 6</span>
-                        </div>
-                        <div style={styles.legendItem}>
-                            <div style={{ ...styles.legendColor, backgroundColor: "#22c55e" }}></div>
-                            <span>Jueves - Placas 7 y 8</span>
-                        </div>
-                        <div style={styles.legendItem}>
-                            <div style={{ ...styles.legendColor, backgroundColor: "#3b82f6" }}></div>
-                            <span>Viernes - Placas 9 y 0</span>
+                            <span>Restricción Vehicular</span>
                         </div>
                     </div>
                 </div>
@@ -250,38 +259,22 @@ const MapaRestricciones = () => {
                         </div>
 
                         <div style={styles.modalContent}>
-                            <p style={styles.modalDescription}>Selecciona el tipo de restricción vehicular para esta zona:</p>
+                            <p style={styles.modalDescription}>
+                                Se creará una zona de restricción vehicular en el área seleccionada.
+                            </p>
 
-                            <div style={styles.selectWrapper}>
-                                <select
-                                    style={styles.select}
-                                    onChange={(e) => setCurrentLayer({ ...currentLayer, restriction: e.target.value })}
-                                    value={currentLayer?.restriction || ""}
-                                >
-                                    <option value="">Selecciona una opción</option>
-                                    <option value="Lunes - Placas 1 y 2">🚫 Lunes - Placas 1 y 2</option>
-                                    <option value="Martes - Placas 3 y 4">⚠️ Martes - Placas 3 y 4</option>
-                                    <option value="Miércoles - Placas 5 y 6">🚦 Miércoles - Placas 5 y 6</option>
-                                    <option value="Jueves - Placas 7 y 8">🛑 Jueves - Placas 7 y 8</option>
-                                    <option value="Viernes - Placas 9 y 0">🚨 Viernes - Placas 9 y 0</option>
-                                </select>
-                            </div>
-
-                            {currentLayer?.restriction && (
-                                <div style={styles.previewCard}>
-                                    <div style={styles.previewHeader}>
-                                        <div style={styles.previewIcon}>{getIconFromRestriction(currentLayer.restriction)}</div>
-                                        <div style={styles.previewDay}>{getDayFromRestriction(currentLayer.restriction)}</div>
-                                    </div>
-                                    <div style={styles.previewText}>{currentLayer.restriction}</div>
-                                    <div
-                                        style={{
-                                            ...styles.previewColor,
-                                            backgroundColor: getColorFromRestriction(currentLayer.restriction),
-                                        }}
-                                    ></div>
+                            <div style={styles.previewCard}>
+                                <div style={styles.previewHeader}>
+                                    <div style={styles.previewIcon}>{getIconFromRestriction()}</div>
                                 </div>
-                            )}
+                                <div style={styles.previewText}>RESTRICCIÓN VEHICULAR</div>
+                                <div
+                                    style={{
+                                        ...styles.previewColor,
+                                        backgroundColor: getColorFromRestriction(),
+                                    }}
+                                ></div>
+                            </div>
                         </div>
 
                         <div style={styles.modalActions}>
@@ -373,8 +366,6 @@ const styles = {
         border: "1px solid rgba(255, 107, 53, 0.2)",
         zIndex: 1000,
         minWidth: "280px",
-        maxHeight: "400px",
-        overflowY: "auto",
     },
     legendTitle: {
         fontSize: "1.1rem",
@@ -422,15 +413,6 @@ const styles = {
     },
     popupIcon: {
         fontSize: "1.5rem",
-    },
-    popupDay: {
-        backgroundColor: "#ff6b35",
-        color: "#ffffff",
-        padding: "4px 8px",
-        borderRadius: "6px",
-        fontSize: "0.75rem",
-        fontWeight: "700",
-        letterSpacing: "0.5px",
     },
     popupText: {
         fontSize: "0.95rem",
@@ -507,27 +489,6 @@ const styles = {
         lineHeight: "1.5",
         margin: "0 0 20px 0",
     },
-    selectWrapper: {
-        position: "relative",
-        marginBottom: "24px",
-    },
-    select: {
-        width: "100%",
-        padding: "16px 20px",
-        fontSize: "1rem",
-        border: "2px solid #e5e7eb",
-        borderRadius: "12px",
-        backgroundColor: "#ffffff",
-        color: "#000000",
-        outline: "none",
-        transition: "all 0.3s ease",
-        appearance: "none",
-        backgroundImage:
-            'url(\'data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 5"><path fill="%23666" d="M2 0L0 2h4zm0 5L0 3h4z"/></svg>\')',
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "right 16px center",
-        backgroundSize: "12px",
-    },
     previewCard: {
         background: "linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 107, 53, 0.1) 100%)",
         border: "2px solid rgba(255, 107, 53, 0.2)",
@@ -544,15 +505,6 @@ const styles = {
     },
     previewIcon: {
         fontSize: "1.5rem",
-    },
-    previewDay: {
-        backgroundColor: "#ff6b35",
-        color: "#ffffff",
-        padding: "4px 8px",
-        borderRadius: "6px",
-        fontSize: "0.75rem",
-        fontWeight: "700",
-        letterSpacing: "0.5px",
     },
     previewText: {
         fontSize: "0.95rem",
@@ -614,7 +566,6 @@ const styles = {
     },
 }
 
-// Agregar estilos CSS personalizados
 if (typeof document !== "undefined") {
     const styleSheet = document.createElement("style")
     styleSheet.textContent = `
@@ -674,29 +625,6 @@ if (typeof document !== "undefined") {
             background-color: #e55a2b;
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
-        }
-        
-        .select:focus {
-            border-color: #ff6b35;
-            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
-        }
-        
-        .legend::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        .legend::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.1);
-            border-radius: 3px;
-        }
-        
-        .legend::-webkit-scrollbar-thumb {
-            background: rgba(255, 107, 53, 0.3);
-            border-radius: 3px;
-        }
-        
-        .legend::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 107, 53, 0.5);
         }
     `
     document.head.appendChild(styleSheet)

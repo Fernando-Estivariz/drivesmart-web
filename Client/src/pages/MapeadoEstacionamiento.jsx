@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Sidebar } from ".././components/Sidebar"
+import { Sidebar } from "../components/Sidebar"
 import MapaEstacionamientos from "../components/MapaEstacionamientos"
 
 const MapeadoEstacionamientos = () => {
@@ -20,7 +20,7 @@ const MapeadoEstacionamientos = () => {
                 {/* Header Section */}
                 <div style={styles.header}>
                     <h1 style={styles.title}>
-                        <span style={styles.titleIcon}>🗺️</span>
+                        <span style={styles.titleIcon}></span>
                         Mapeado de <span style={styles.titleAccent}>Estacionamientos</span>
                     </h1>
                 </div>
