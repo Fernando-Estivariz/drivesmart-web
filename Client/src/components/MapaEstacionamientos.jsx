@@ -6,12 +6,22 @@ import { EditControl } from "react-leaflet-draw"
 import "leaflet/dist/leaflet.css"
 import "leaflet-draw/dist/leaflet.draw.css"
 import axios from "axios"
+import {
+    MdLocationOn, MdEdit, MdDelete, MdWarning, MdClose, MdCheck,
+    MdLocalParking, MdDoNotDisturb, MdDirectionsBus, MdAccessible,
+    MdLocalShipping, MdLocalPolice, MdElectricCar, MdSearch, MdAdjust
+} from "react-icons/md"
 
 const MapaEstacionamientos = () => {
     const [mapLayers, setMapLayers] = useState([])
     const [center, setCenter] = useState({ lat: -17.389675468353254, lng: -66.15497157617803 })
     const [currentLayer, setCurrentLayer] = useState(null)
     const [modal, setModal] = useState(false)
+    const [editModal, setEditModal] = useState(false)
+    const [selectedLayer, setSelectedLayer] = useState(null)
+    const [isEditingLine, setIsEditingLine] = useState(false)
+    const [editableLineRef, setEditableLineRef] = useState(null)
+    const [deleteConfirmModal, setDeleteConfirmModal] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 })
     const [filter, setFilter] = useState("Todos")
@@ -47,15 +57,15 @@ const MapaEstacionamientos = () => {
 
     const getIconFromRestriction = (restriction) => {
         const iconMap = {
-            "ESTACIONAMIENTO PROHIBIDO": "🚫",
-            "ESTACIONAMIENTO TARIFADO": "🅿️",
-            "ESTACIONAMIENTO TRANSPORTE PÚBLICO": "🚌",
-            "ESTACIONAMIENTO PERSONAS CON DISCAPACIDAD": "♿",
-            "ESTACIONAMIENTO DESCARGUE DE MERCADERÍA": "📦",
-            "ESTACIONAMIENTO VEHÍCULOS OFICIALES": "🚓",
-            "ESTACIONAMIENTO ESPECIAL VEHÍCULOS ELÉCTRICOS": "⚡",
+            "ESTACIONAMIENTO PROHIBIDO": <MdDoNotDisturb size={20} />,
+            "ESTACIONAMIENTO TARIFADO": <MdLocalParking size={20} />,
+            "ESTACIONAMIENTO TRANSPORTE PÚBLICO": <MdDirectionsBus size={20} />,
+            "ESTACIONAMIENTO PERSONAS CON DISCAPACIDAD": <MdAccessible size={20} />,
+            "ESTACIONAMIENTO DESCARGUE DE MERCADERÍA": <MdLocalShipping size={20} />,
+            "ESTACIONAMIENTO VEHÍCULOS OFICIALES": <MdLocalPolice size={20} />,
+            "ESTACIONAMIENTO ESPECIAL VEHÍCULOS ELÉCTRICOS": <MdElectricCar size={20} />,
         }
-        return iconMap[restriction] || "🅿"
+        return iconMap[restriction] || <MdLocalParking size={20} />
     }
 
     useEffect(() => {
@@ -65,35 +75,35 @@ const MapaEstacionamientos = () => {
                 const response = await axios.get(`${process.env.REACT_APP_API_URL}/mapeado`, common)
                 const data = response.data.filter((layer) => layer.type === "polyline")
 
-                console.log("[v0] ===== FETCH DATA DEBUG =====")
-                console.log("[v0] Total layers received:", response.data.length)
-                console.log("[v0] Polyline layers:", data.length)
-                console.log("[v0] First 5 layers:", data.slice(0, 5))
+                console.log("===== FETCH DATA DEBUG =====")
+                console.log("Total layers received:", response.data.length)
+                console.log("Polyline layers:", data.length)
+                console.log("First 5 layers:", data.slice(0, 5))
 
                 const allIds = data.map((l) => l.id)
-                console.log("[v0] All IDs:", allIds)
+                console.log("All IDs:", allIds)
 
                 const validIds = allIds.filter((id) => id != null && !isNaN(id))
-                console.log("[v0] Valid IDs:", validIds)
-                console.log("[v0] Valid IDs count:", validIds.length)
+                console.log("Valid IDs:", validIds)
+                console.log("Valid IDs count:", validIds.length)
 
                 const maxId = validIds.length > 0 ? Math.max(...validIds) : 6385
                 const nextId = maxId + 1
 
-                console.log("[v0] Max ID found:", maxId)
-                console.log("[v0] Next ID will be:", nextId)
-                console.log("[v0] ===== END FETCH DATA DEBUG =====")
+                console.log("Max ID found:", maxId)
+                console.log("Next ID will be:", nextId)
+                console.log("===== END FETCH DATA DEBUG =====")
 
                 nextDbIdRef.current = nextId
 
                 setMapLayers(data)
 
-                console.log("[v0] Loaded layers:", data.length)
-                console.log("[v0] Valid IDs count:", validIds.length)
-                console.log("[v0] Max ID found:", maxId)
-                console.log("[v0] Next ID will be:", nextId)
+                console.log("Loaded layers:", data.length)
+                console.log("Valid IDs count:", validIds.length)
+                console.log("Max ID found:", maxId)
+                console.log("Next ID will be:", nextId)
             } catch (error) {
-                console.error("[v0] Error fetching estacionamientos:", error)
+                console.error("Error fetching estacionamientos:", error)
             } finally {
                 setIsLoading(false)
             }
@@ -107,20 +117,17 @@ const MapaEstacionamientos = () => {
         const map = mapRef.current
 
         const handleEditStart = async () => {
-            console.log("[v0] Edit mode activated")
+            console.log("Edit mode activated")
             setIsEditMode(true)
 
             const totalLayers = mapLayers.filter((layer) => filter === "Todos" || layer.restriction === filter).length
 
-            // If more than 1000 layers, process in batches
             if (totalLayers > 1000) {
                 setIsLoading(true)
                 setLoadingProgress({ current: 0, total: Math.ceil(totalLayers / 500) })
 
-                // Start with 500 layers
                 setEditRenderLimit(500)
 
-                // Gradually increase the limit
                 for (let i = 1000; i <= totalLayers; i += 500) {
                     await new Promise((resolve) => setTimeout(resolve, 100))
                     setEditRenderLimit(i)
@@ -134,12 +141,11 @@ const MapaEstacionamientos = () => {
         }
 
         const handleEditStop = () => {
-            console.log("[v0] Edit mode deactivated")
+            console.log("Edit mode deactivated")
             setIsEditMode(false)
             setEditRenderLimit(null)
         }
 
-        // Listen for Leaflet Draw events
         map.on("draw:editstart", handleEditStart)
         map.on("draw:editstop", handleEditStop)
         map.on("draw:deletestart", handleEditStart)
@@ -172,7 +178,7 @@ const MapaEstacionamientos = () => {
 
                 if (matchingLayer) {
                     newMapping[layer._leaflet_id] = matchingLayer.id
-                    console.log("[v0] Mapped Leaflet ID", layer._leaflet_id, "to DB ID", matchingLayer.id)
+                    console.log("Mapped Leaflet ID", layer._leaflet_id, "to DB ID", matchingLayer.id)
                 }
             })
             setLeafletIdToDbId(newMapping)
@@ -182,11 +188,11 @@ const MapaEstacionamientos = () => {
     const handleCreate = (e) => {
         const { layer } = e
 
-        console.log("[v0] ===== CREATE DEBUG =====")
-        console.log("[v0] Current nextDbId:", nextDbIdRef.current)
-        console.log("[v0] nextDbId type:", typeof nextDbIdRef.current)
-        console.log("[v0] nextDbId is null?", nextDbIdRef.current === null)
-        console.log("[v0] nextDbId is NaN?", isNaN(nextDbIdRef.current))
+        //console.log("===== CREATE DEBUG =====")
+        //console.log("Current nextDbId:", nextDbIdRef.current)
+        //console.log("nextDbId type:", typeof nextDbIdRef.current)
+        //console.log("nextDbId is null?", nextDbIdRef.current === null)
+        //console.log("nextDbId is NaN?", isNaN(nextDbIdRef.current))
 
         const newLayer = {
             id: nextDbIdRef.current,
@@ -195,8 +201,8 @@ const MapaEstacionamientos = () => {
             restriction: null,
         }
 
-        console.log("[v0] New layer created:", newLayer)
-        console.log("[v0] ===== END CREATE DEBUG =====")
+        console.log("New layer created:", newLayer)
+        console.log("===== END CREATE DEBUG =====")
 
         setCurrentLayer(newLayer)
         setModal(true)
@@ -311,46 +317,138 @@ const MapaEstacionamientos = () => {
         }
     }
 
+    const handleLineClick = (layer) => {
+        console.log("Line clicked:", layer)
+        setSelectedLayer(layer)
+        setEditModal(true)
+        setIsEditingLine(false)
+    }
+
+    const enableLineEditing = () => {
+        if (!selectedLayer || !mapRef.current) return
+
+        setIsEditingLine(true)
+
+        featureGroupRef.current.eachLayer((leafletLayer) => {
+            if (!leafletLayer.getLatLngs) return
+
+            const layerLatLngs = leafletLayer.getLatLngs()
+            if (layerLatLngs.length === 0) return
+
+            const firstCoord = layerLatLngs[0]
+            const selectedFirstCoord = selectedLayer.latlngs[0]
+
+            if (
+                Math.abs(firstCoord.lat - selectedFirstCoord[0]) < 0.0001 &&
+                Math.abs(firstCoord.lng - selectedFirstCoord[1]) < 0.0001
+            ) {
+                if (leafletLayer.editing) {
+                    leafletLayer.editing.enable()
+                    setEditableLineRef(leafletLayer)
+                    console.log("Editing enabled for layer:", selectedLayer.id)
+                }
+            }
+        })
+    }
+
+    const saveLineEdit = async () => {
+        if (!selectedLayer) return
+
+        setIsLoading(true)
+        try {
+            let updatedLatLngs = selectedLayer.latlngs
+
+            if (isEditingLine && editableLineRef) {
+                updatedLatLngs = editableLineRef.getLatLngs().map((point) => [point.lat, point.lng])
+
+                if (editableLineRef.editing) {
+                    editableLineRef.editing.disable()
+                }
+            }
+
+            const updatedLayer = {
+                id: selectedLayer.id,
+                latlngs: updatedLatLngs,
+                type: "polyline",
+                restriction: selectedLayer.restriction,
+            }
+
+            await axios.put(`${process.env.REACT_APP_API_URL}/mapeado/${selectedLayer.id}`, updatedLayer, common)
+
+            setMapLayers((prev) => prev.map((l) => (l.id === selectedLayer.id ? updatedLayer : l)))
+
+            setEditModal(false)
+            setSelectedLayer(null)
+            setIsEditingLine(false)
+            setEditableLineRef(null)
+
+            console.log("Line updated successfully:", selectedLayer.id)
+        } catch (error) {
+            console.error("Error updating line:", error)
+            alert("Error al actualizar la línea: " + (error.response?.data?.message || error.message))
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const deleteSelectedLine = async () => {
+        if (!selectedLayer) return
+
+        setDeleteConfirmModal(true)
+    }
+
+    const confirmDeleteLine = async () => {
+        if (!selectedLayer) return
+
+        setDeleteConfirmModal(false)
+        setIsLoading(true)
+        try {
+            await axios.delete(`${process.env.REACT_APP_API_URL}/mapeado/${selectedLayer.id}`, common)
+
+            setMapLayers((prev) => prev.filter((l) => l.id !== selectedLayer.id))
+
+            setEditModal(false)
+            setSelectedLayer(null)
+            setIsEditingLine(false)
+            setEditableLineRef(null)
+
+            console.log("Line deleted successfully:", selectedLayer.id)
+        } catch (error) {
+            console.error("Error deleting line:", error)
+            alert("Error al eliminar la línea: " + (error.response?.data?.message || error.message))
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
     const confirmModal = async () => {
-        if (!currentLayer.restriction) {
+        if (!currentLayer || !currentLayer.restriction) {
             alert("Por favor selecciona un tipo de restricción")
             return
         }
 
-        console.log("[v0] ===== CONFIRM MODAL DEBUG =====")
-        console.log("[v0] Current layer:", currentLayer)
-        console.log("[v0] Current layer ID:", currentLayer.id)
-        console.log("[v0] Current layer ID type:", typeof currentLayer.id)
-        console.log("[v0] nextDbId:", nextDbIdRef.current)
-
-        if (!currentLayer.id || currentLayer.id === null || isNaN(currentLayer.id)) {
-            alert("Error: No se pudo generar un ID válido. Por favor recarga la página.")
-            console.error("[v0] Invalid currentLayer.id:", currentLayer.id)
-            console.log("[v0] ===== END CONFIRM MODAL DEBUG =====")
+        if (nextDbIdRef.current === null || isNaN(nextDbIdRef.current)) {
+            console.error("Invalid ID:", nextDbIdRef.current)
+            alert("Error: ID inválido. Por favor recarga la página.")
             return
         }
 
         setIsLoading(true)
         try {
-            console.log("[v0] Sending POST request with data:", currentLayer)
-            console.log("[v0] POST URL:", `${process.env.REACT_APP_API_URL}/mapeado`)
+            console.log("Saving new estacionamiento:", currentLayer)
 
             const response = await axios.post(`${process.env.REACT_APP_API_URL}/mapeado`, currentLayer, common)
 
-            console.log("[v0] POST response:", response.data)
+            console.log("Response:", response.data)
 
             setMapLayers((prev) => [...prev, currentLayer])
+
             nextDbIdRef.current = nextDbIdRef.current + 1
 
             setModal(false)
             setCurrentLayer(null)
-
-            console.log("[v0] Layer saved successfully. Next ID:", nextDbIdRef.current + 1)
-            console.log("[v0] ===== END CONFIRM MODAL DEBUG =====")
         } catch (error) {
-            console.error("[v0] Error saving estacionamiento:", error)
-            console.error("[v0] Error response:", error.response?.data)
-            console.log("[v0] ===== END CONFIRM MODAL DEBUG =====")
+            console.error("Error saving estacionamiento:", error)
             alert("Error al guardar el estacionamiento: " + (error.response?.data?.message || error.message))
         } finally {
             setIsLoading(false)
@@ -360,7 +458,6 @@ const MapaEstacionamientos = () => {
     const displayedLayers = useMemo(() => {
         const filtered = mapLayers.filter((layer) => filter === "Todos" || layer.restriction === filter)
 
-        // Apply edit render limit if in edit mode
         if (isEditMode && editRenderLimit !== null && filtered.length > editRenderLimit) {
             return filtered.slice(0, editRenderLimit)
         }
@@ -375,21 +472,23 @@ const MapaEstacionamientos = () => {
                     value={filter}
                     onChange={(e) => {
                         setFilter(e.target.value)
-                        // setRenderLimit(null) // Removed due to undeclared variable error
                     }}
                     style={{
-                        padding: "8px",
+                        padding: "8px 12px",
                         borderRadius: "8px",
                         border: "1px solid #ccc",
                         fontSize: "1rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
                     }}
                 >
-                    <option value="Todos">🔎 Mostrar Todos</option>
+                    <option value="Todos">Mostrar Todos</option>
                     {[...new Set(mapLayers.map((layer) => layer.restriction))]
                         .filter((r) => r)
                         .map((restriction) => (
                             <option key={restriction} value={restriction}>
-                                {getIconFromRestriction(restriction)} {restriction}
+                                {restriction}
                             </option>
                         ))}
                 </select>
@@ -397,11 +496,7 @@ const MapaEstacionamientos = () => {
                 <span style={{ fontSize: "0.9rem", color: "#666" }}>
                     Mostrando {displayedLayers.length} de {mapLayers.length} líneas
                 </span>
-
-                {/* Removed the "Preparar Edición" button */}
             </div>
-
-            {/* Removed the warning message about too many lines */}
 
             <div style={styles.mapWrapper}>
                 {isLoading && (
@@ -421,8 +516,6 @@ const MapaEstacionamientos = () => {
                         <EditControl
                             position="topright"
                             onCreated={handleCreate}
-                            onEdited={handleEdit}
-                            onDeleted={handleDelete}
                             draw={{
                                 rectangle: false,
                                 polygon: false,
@@ -437,6 +530,10 @@ const MapaEstacionamientos = () => {
                                     },
                                 },
                             }}
+                            edit={{
+                                edit: false,
+                                remove: false,
+                            }}
                         />
                         {displayedLayers.map((layer) => (
                             <Polyline
@@ -445,6 +542,9 @@ const MapaEstacionamientos = () => {
                                 color={getColorFromRestriction(layer.restriction)}
                                 weight={5}
                                 opacity={0.8}
+                                eventHandlers={{
+                                    click: () => handleLineClick(layer),
+                                }}
                             >
                                 <Popup className="custom-popup">
                                     <div style={styles.popupContent}>
@@ -453,6 +553,8 @@ const MapaEstacionamientos = () => {
                                             <strong>{layer.restriction || "Sin restricción"}</strong>
                                             <br />
                                             <small>ID: {layer.id}</small>
+                                            <br />
+                                            <small style={{ color: "#ff6b35", fontWeight: "600" }}>Click para editar</small>
                                         </div>
                                     </div>
                                 </Popup>
@@ -466,31 +568,38 @@ const MapaEstacionamientos = () => {
                     <div style={styles.legendItems}>
                         <div style={styles.legendItem}>
                             <div style={{ ...styles.legendColor, backgroundColor: "#ef4444" }}></div>
-                            <span>🚫 Estacionamiento Prohibido</span>
+                            <MdDoNotDisturb size={18} style={{ color: "#ef4444" }} />
+                            <span>Estacionamiento Prohibido</span>
                         </div>
                         <div style={styles.legendItem}>
                             <div style={{ ...styles.legendColor, backgroundColor: "#3b82f6" }}></div>
-                            <span>🅿️ Estacionamiento Tarifado</span>
+                            <MdLocalParking size={18} style={{ color: "#3b82f6" }} />
+                            <span>Estacionamiento Tarifado</span>
                         </div>
                         <div style={styles.legendItem}>
                             <div style={{ ...styles.legendColor, backgroundColor: "#f59e0b" }}></div>
-                            <span>🚌 Transporte Público</span>
+                            <MdDirectionsBus size={18} style={{ color: "#f59e0b" }} />
+                            <span>Transporte Público</span>
                         </div>
                         <div style={styles.legendItem}>
                             <div style={{ ...styles.legendColor, backgroundColor: "#8b5cf6" }}></div>
-                            <span>♿ Discapacidad</span>
+                            <MdAccessible size={18} style={{ color: "#8b5cf6" }} />
+                            <span>Discapacidad</span>
                         </div>
                         <div style={styles.legendItem}>
                             <div style={{ ...styles.legendColor, backgroundColor: "#10b981" }}></div>
-                            <span>📦 Descarga Mercadería</span>
+                            <MdLocalShipping size={18} style={{ color: "#10b981" }} />
+                            <span>Descarga Mercadería</span>
                         </div>
                         <div style={styles.legendItem}>
                             <div style={{ ...styles.legendColor, backgroundColor: "#facc15" }}></div>
-                            <span>🚓 Vehículos Oficiales</span>
+                            <MdLocalPolice size={18} style={{ color: "#facc15" }} />
+                            <span>Vehículos Oficiales</span>
                         </div>
                         <div style={styles.legendItem}>
                             <div style={{ ...styles.legendColor, backgroundColor: "#84cc16" }}></div>
-                            <span>⚡ Vehículos Eléctricos</span>
+                            <MdElectricCar size={18} style={{ color: "#84cc16" }} />
+                            <span>Vehículos Eléctricos</span>
                         </div>
                     </div>
                 </div>
@@ -502,11 +611,11 @@ const MapaEstacionamientos = () => {
                     <div style={styles.modal}>
                         <div style={styles.modalHeader}>
                             <h2 style={styles.modalTitle}>
-                                <span style={styles.modalIcon}>🗺️</span>
+                                <MdLocationOn size={28} style={{ color: "#ff6b35" }} />
                                 Tipo de Restricción
                             </h2>
                             <button style={styles.closeButton} onClick={() => setModal(false)}>
-                                ✕
+                                <MdClose size={24} />
                             </button>
                         </div>
 
@@ -521,18 +630,18 @@ const MapaEstacionamientos = () => {
                                     value={currentLayer?.restriction || ""}
                                 >
                                     <option value="">Selecciona una opción</option>
-                                    <option value="ESTACIONAMIENTO PROHIBIDO">🚫 Estacionamiento Prohibido</option>
-                                    <option value="ESTACIONAMIENTO TARIFADO">🅿️ Estacionamiento Tarifado</option>
-                                    <option value="ESTACIONAMIENTO TRANSPORTE PÚBLICO">🚌 Estacionamiento Transporte Público</option>
+                                    <option value="ESTACIONAMIENTO PROHIBIDO">Estacionamiento Prohibido</option>
+                                    <option value="ESTACIONAMIENTO TARIFADO">Estacionamiento Tarifado</option>
+                                    <option value="ESTACIONAMIENTO TRANSPORTE PÚBLICO">Estacionamiento Transporte Público</option>
                                     <option value="ESTACIONAMIENTO PERSONAS CON DISCAPACIDAD">
-                                        ♿ Estacionamiento Personas con Discapacidad
+                                        Estacionamiento Personas con Discapacidad
                                     </option>
                                     <option value="ESTACIONAMIENTO DESCARGUE DE MERCADERÍA">
-                                        📦 Estacionamiento Descargue de Mercadería
+                                        Estacionamiento Descargue de Mercadería
                                     </option>
-                                    <option value="ESTACIONAMIENTO VEHÍCULOS OFICIALES">🚓 Estacionamiento Vehículos Oficiales</option>
+                                    <option value="ESTACIONAMIENTO VEHÍCULOS OFICIALES">Estacionamiento Vehículos Oficiales</option>
                                     <option value="ESTACIONAMIENTO ESPECIAL VEHÍCULOS ELÉCTRICOS">
-                                        ⚡ Estacionamiento Especial Vehículos Eléctricos
+                                        Estacionamiento Especial Vehículos Eléctricos
                                     </option>
                                 </select>
                             </div>
@@ -552,8 +661,178 @@ const MapaEstacionamientos = () => {
                                         <div style={styles.buttonSpinner}></div>Guardando...
                                     </>
                                 ) : (
-                                    <>✓ Confirmar</>
+                                    <>
+                                        <MdCheck size={20} /> Confirmar
+                                    </>
                                 )}
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {editModal && selectedLayer && (
+                <>
+                    {!isEditingLine && (
+                        <div
+                            style={styles.modalOverlay}
+                            onClick={() => {
+                                if (isEditingLine && editableLineRef?.editing) {
+                                    editableLineRef.editing.disable()
+                                }
+                                setEditModal(false)
+                                setSelectedLayer(null)
+                                setIsEditingLine(false)
+                                setEditableLineRef(null)
+                            }}
+                        ></div>
+                    )}
+                    <div style={isEditingLine ? styles.modalMinimized : styles.modal}>
+                        <div style={styles.modalHeader}>
+                            <h2 style={styles.modalTitle}>
+                                <MdEdit size={28} style={{ color: "#ff6b35" }} />
+                                Editar Línea
+                            </h2>
+                            <button
+                                style={styles.closeButton}
+                                onClick={() => {
+                                    if (isEditingLine && editableLineRef?.editing) {
+                                        editableLineRef.editing.disable()
+                                    }
+                                    setEditModal(false)
+                                    setSelectedLayer(null)
+                                    setIsEditingLine(false)
+                                    setEditableLineRef(null)
+                                }}
+                            >
+                                <MdClose size={24} />
+                            </button>
+                        </div>
+
+                        {!isEditingLine && (
+                            <>
+                                <div style={styles.modalContent}>
+                                    <p style={styles.modalDescription}>
+                                        ID: {selectedLayer.id} • {selectedLayer.restriction}
+                                    </p>
+
+                                    <div style={styles.selectWrapper}>
+                                        <label style={styles.label}>Tipo de Restricción:</label>
+                                        <select
+                                            style={styles.select}
+                                            onChange={(e) => setSelectedLayer({ ...selectedLayer, restriction: e.target.value })}
+                                            value={selectedLayer.restriction || ""}
+                                        >
+                                            <option value="">Selecciona una opción</option>
+                                            <option value="ESTACIONAMIENTO PROHIBIDO">Estacionamiento Prohibido</option>
+                                            <option value="ESTACIONAMIENTO TARIFADO">Estacionamiento Tarifado</option>
+                                            <option value="ESTACIONAMIENTO TRANSPORTE PÚBLICO">Estacionamiento Transporte Público</option>
+                                            <option value="ESTACIONAMIENTO PERSONAS CON DISCAPACIDAD">
+                                                Estacionamiento Personas con Discapacidad
+                                            </option>
+                                            <option value="ESTACIONAMIENTO DESCARGUE DE MERCADERÍA">
+                                                Estacionamiento Descargue de Mercadería
+                                            </option>
+                                            <option value="ESTACIONAMIENTO VEHÍCULOS OFICIALES">Estacionamiento Vehículos Oficiales</option>
+                                            <option value="ESTACIONAMIENTO ESPECIAL VEHÍCULOS ELÉCTRICOS">
+                                                Estacionamiento Especial Vehículos Eléctricos
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <button
+                                        style={styles.editPositionButton}
+                                        onClick={enableLineEditing}
+                                    >
+                                        <MdAdjust size={20} /> Ajustar Posición de la Línea
+                                    </button>
+                                </div>
+
+                                <div style={styles.modalActions}>
+                                    <button
+                                        style={styles.deleteButton}
+                                        onClick={deleteSelectedLine}
+                                        disabled={isLoading}
+                                    >
+                                        <MdDelete size={20} /> Eliminar
+                                    </button>
+                                    <button
+                                        style={styles.cancelButton}
+                                        onClick={() => {
+                                            setEditModal(false)
+                                            setSelectedLayer(null)
+                                        }}
+                                        disabled={isLoading}
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        style={{ ...styles.confirmButton, ...(isLoading ? styles.buttonDisabled : {}) }}
+                                        onClick={saveLineEdit}
+                                        disabled={isLoading}
+                                    >
+                                        {isLoading ? (
+                                            <>
+                                                <div style={styles.buttonSpinner}></div>Guardando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <MdCheck size={20} /> Guardar Cambios
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
+                        {isEditingLine && (
+                            <div style={styles.editingHintCompact}>
+                                <MdEdit size={20} style={{ color: "#ff6b35" }} />
+                                <span>Arrastra los puntos en el mapa para ajustar la línea</span>
+                                <button
+                                    style={styles.finishEditingButton}
+                                    onClick={() => {
+                                        if (editableLineRef?.editing) {
+                                            editableLineRef.editing.disable()
+                                        }
+                                        setIsEditingLine(false)
+                                        setEditableLineRef(null)
+                                    }}
+                                >
+                                    <MdCheck size={18} /> Finalizar Edición
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </>
+            )}
+
+            {deleteConfirmModal && (
+                <>
+                    <div style={styles.modalOverlay} onClick={() => setDeleteConfirmModal(false)}></div>
+                    <div style={styles.modal}>
+                        <div style={styles.modalHeader}>
+                            <h2 style={styles.modalTitle}>
+                                <MdWarning size={28} style={{ color: "#ef4444" }} />
+                                Confirmar Eliminación
+                            </h2>
+                            <button style={styles.closeButton} onClick={() => setDeleteConfirmModal(false)}>
+                                <MdClose size={24} />
+                            </button>
+                        </div>
+
+                        <div style={styles.modalContent}>
+                            <p style={styles.modalDescription}>
+                                ¿Estás seguro de eliminar esta línea? Esta acción no se puede deshacer.
+                            </p>
+                        </div>
+
+                        <div style={styles.modalActions}>
+                            <button style={styles.cancelButton} onClick={() => setDeleteConfirmModal(false)}>
+                                Cancelar
+                            </button>
+                            <button style={{ ...styles.deleteButton, ...styles.deleteConfirmButton }} onClick={confirmDeleteLine}>
+                                <MdDelete size={20} /> Eliminar
                             </button>
                         </div>
                     </div>
@@ -639,7 +918,7 @@ const styles = {
     legendItem: {
         display: "flex",
         alignItems: "center",
-        gap: "12px",
+        gap: "8px", // Changed from 12px to 8px to match the update
         fontSize: "0.9rem",
         color: "#000000",
         fontWeight: "500",
@@ -737,6 +1016,13 @@ const styles = {
         position: "relative",
         marginBottom: "24px",
     },
+    label: {
+        display: "block",
+        fontSize: "0.9rem",
+        fontWeight: "600",
+        color: "#374151",
+        marginBottom: "8px",
+    },
     select: {
         width: "100%",
         padding: "16px 20px",
@@ -754,12 +1040,81 @@ const styles = {
         backgroundPosition: "right 16px center",
         backgroundSize: "12px",
     },
+    editPositionButton: {
+        width: "100%",
+        padding: "12px 20px",
+        fontSize: "1rem",
+        fontWeight: "600",
+        border: "2px solid #ff6b35",
+        borderRadius: "12px",
+        backgroundColor: "#fff5f2",
+        color: "#ff6b35",
+        cursor: "pointer",
+        transition: "all 0.3s ease",
+        marginTop: "12px",
+        display: "flex", // Added for icon alignment
+        alignItems: "center", // Added for icon alignment
+        justifyContent: "center", // Added for icon alignment
+        gap: "8px", // Added for icon alignment
+    },
+    modalMinimized: {
+        position: "fixed",
+        bottom: "20px",
+        right: "20px",
+        backgroundColor: "#ffffff",
+        borderRadius: "16px",
+        boxShadow: "0 8px 25px rgba(0, 0, 0, 0.2)",
+        zIndex: 1600,
+        width: "auto",
+        maxWidth: "400px",
+        border: "2px solid rgba(255, 107, 53, 0.2)",
+        overflow: "hidden",
+    },
+    editingHintCompact: {
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        padding: "16px 20px",
+        backgroundColor: "#fff5f2",
+        borderTop: "1px solid rgba(255, 107, 53, 0.2)",
+        color: "#ff6b35",
+        fontSize: "0.9rem",
+        fontWeight: "500",
+    },
+    finishEditingButton: {
+        marginLeft: "auto",
+        padding: "8px 16px",
+        fontSize: "0.9rem",
+        fontWeight: "600",
+        border: "none",
+        borderRadius: "8px",
+        backgroundColor: "#ff6b35",
+        color: "#ffffff",
+        cursor: "pointer",
+        transition: "all 0.3s ease",
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        whiteSpace: "nowrap",
+    },
     modalActions: {
         display: "flex",
         gap: "12px",
         padding: "24px",
         borderTop: "1px solid rgba(0, 0, 0, 0.1)",
         justifyContent: "flex-end",
+    },
+    deleteButton: {
+        padding: "12px 24px",
+        fontSize: "1rem",
+        fontWeight: "600",
+        border: "1px solid #ef4444",
+        borderRadius: "12px",
+        backgroundColor: "#ffffff",
+        color: "#ef4444",
+        cursor: "pointer",
+        transition: "all 0.3s ease",
+        marginRight: "auto",
     },
     cancelButton: {
         padding: "12px 24px",
@@ -798,6 +1153,11 @@ const styles = {
         borderTop: "2px solid #ffffff",
         borderRadius: "50%",
         animation: "spin 1s linear infinite",
+    },
+    deleteConfirmButton: {
+        backgroundColor: "#ef4444",
+        color: "#ffffff",
+        marginRight: "0",
     },
 }
 

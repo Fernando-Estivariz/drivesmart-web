@@ -1,14 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import logo from ".././assets/DRIVESMART.png"
+import logo from ".././assets/LogoFondoBlanco.png"
 import { AiOutlineLeft, AiOutlineHome, AiOutlineUser, AiOutlineBarChart } from "react-icons/ai"
 import { MdLogout } from "react-icons/md"
 import { FaMap } from "react-icons/fa"
 import { NavLink } from "react-router-dom"
 
 export function Sidebar() {
-    const [isOpen, setIsOpen] = useState(true) // Estado para abrir/cerrar el Sidebar
+    const [isOpen, setIsOpen] = useState(true) 
 
     const toggleSidebar = () => {
         setIsOpen(!isOpen) // Alternar entre abierto/cerrado

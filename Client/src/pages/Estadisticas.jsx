@@ -16,7 +16,7 @@ L.Icon.Default.mergeOptions({
     shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 })
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001" // Default to localhost if not set
+const API_URL = process.env.REACT_APP_API_URL 
 
 export default function Estadisticas() {
     const [isLoading, setIsLoading] = useState(true)
@@ -34,7 +34,7 @@ export default function Estadisticas() {
     })
     const [viajesPorDia, setViajesPorDia] = useState([])
     const [viajesPorMes, setViajesPorMes] = useState([])
-    const [topCalles, setTopCalles] = useState([]) // Added state for topCalles
+    const [topCalles, setTopCalles] = useState([]) 
 
     const [heatmapData, setHeatmapData] = useState([])
     const [polylinesMock, setPolylinesMock] = useState([])
@@ -158,7 +158,7 @@ export default function Estadisticas() {
 
         try {
             const url = `${API_URL}/api/estadisticas`
-            console.log("[v0] Fetching estadisticas iniciales from:", url)
+            console.log("Fetching estadisticas iniciales from:", url)
 
             const response = await axios.get(url, {
                 headers: commonHeaders,
@@ -166,7 +166,7 @@ export default function Estadisticas() {
             })
             const data = response.data
 
-            console.log("[v0] Estadisticas data received:", {
+            console.log("Estadisticas data received:", {
                 polylines_count: data.polylinesMock?.length || 0,
                 trayectorias_count: data.trayectoriasMock?.length || 0,
                 heatmap_count: data.heatmapData?.length || 0,
@@ -188,14 +188,14 @@ export default function Estadisticas() {
             setHeatmapData(data.heatmapData || [])
 
             // Polylines (calles con geometría)
-            console.log("[v0] Polylines recibidos:", data.polylinesMock?.length || 0)
+            console.log("Polylines recibidos:", data.polylinesMock?.length || 0)
             setPolylinesMock(data.polylinesMock || [])
 
             // Zonas heatmap (puntos de calor)
             setZonasHeatmapData(data.zonasHeatmapData || [])
 
             // Trayectorias (rutas completas de viajes)
-            console.log("[v0] Trayectorias recibidas:", data.trayectoriasMock?.length || 0)
+            console.log("[Trayectorias recibidas:", data.trayectoriasMock?.length || 0)
             setTrayectoriasMock(data.trayectoriasMock || [])
 
             // Encontró estacionamiento por día
@@ -271,10 +271,10 @@ export default function Estadisticas() {
                 },
             )
         } catch (err) {
-            console.error("[v0] Error fetching estadisticas:", err)
+            console.error("Error fetching estadisticas:", err)
             setError(err.response?.data?.message || "Error al cargar las estadísticas. Por favor, intenta de nuevo.")
         } finally {
-            setIsLoading(false) // Changed from setLoading to setIsLoading
+            setIsLoading(false) 
         }
     }
 
@@ -285,11 +285,11 @@ export default function Estadisticas() {
             if (week && week !== "all") params.append("week", week)
 
             const url = `${API_URL}/api/estadisticas${params.toString() ? `?${params.toString()}` : ""}`
-            console.log("[v0] Fetching viajes por dia from:", url)
+            console.log("Fetching viajes por dia from:", url)
             const response = await axios.get(url, { headers: commonHeaders, timeout: 15000 })
             setViajesPorDia(response.data.viajesPorDia || [])
         } catch (err) {
-            console.error("[v0] Error fetching viajes por día:", err)
+            console.error("Error fetching viajes por día:", err)
         }
     }
 
@@ -299,11 +299,11 @@ export default function Estadisticas() {
             if (year && year !== "all") params.append("year", year)
 
             const url = `${API_URL}/api/estadisticas${params.toString() ? `?${params.toString()}` : ""}`
-            console.log("[v0] Fetching viajes por mes from:", url)
+            console.log("Fetching viajes por mes from:", url)
             const response = await axios.get(url, { headers: commonHeaders, timeout: 15000 })
             setViajesPorMes(response.data.viajesPorMes || [])
         } catch (err) {
-            console.error("[v0] Error fetching viajes por mes:", err)
+            console.error("Error fetching viajes por mes:", err)
         }
     }
 
@@ -314,11 +314,11 @@ export default function Estadisticas() {
             if (month && month !== "all") params.append("month", month)
 
             const url = `${API_URL}/api/estadisticas${params.toString() ? `?${params.toString()}` : ""}`
-            console.log("[v0] Fetching encontró estacionamiento from:", url)
+            console.log("Fetching encontró estacionamiento from:", url)
             const response = await axios.get(url, { headers: commonHeaders, timeout: 15000 })
             setEncontroEstacionamientoPorDia(response.data.encontroEstacionamientoPorDia || [])
         } catch (err) {
-            console.error("[v0] Error fetching encontró estacionamiento:", err)
+            console.error("Error fetching encontró estacionamiento:", err)
         }
     }
 
@@ -329,7 +329,7 @@ export default function Estadisticas() {
             if (month && month !== "all") params.append("month", month)
 
             const url = `${API_URL}/api/estadisticas${params.toString() ? `?${params.toString()}` : ""}`
-            console.log("[v0] Fetching porcentaje éxito from:", url)
+            console.log("Fetching porcentaje éxito from:", url)
             const response = await axios.get(url, { headers: commonHeaders, timeout: 15000 })
             setPorcentajeExito(
                 response.data.porcentajeExito || {
@@ -348,18 +348,17 @@ export default function Estadisticas() {
             )
             setEvolucionTasas(response.data.evolucionTasas || [])
         } catch (err) {
-            console.error("[v0] Error fetching porcentaje éxito:", err)
+            console.error("Error fetching porcentaje éxito:", err)
         }
     }
 
     const fetchEstadisticas = async () => {
-        // Renamed from fetchEstadisticasIniciales
         setIsLoading(true)
         setError(null)
 
         try {
             const url = `${API_URL}/api/estadisticas`
-            console.log("[v0] Fetching estadisticas from:", url)
+            console.log("Fetching estadisticas from:", url)
 
             const response = await axios.get(url, {
                 headers: commonHeaders,
@@ -367,7 +366,7 @@ export default function Estadisticas() {
             })
             const data = response.data
 
-            console.log("[v0] Estadisticas data received:", {
+            console.log("Estadisticas data received:", {
                 polylines_count: data.polylinesMock?.length || 0,
                 trayectorias_count: data.trayectoriasMock?.length || 0,
                 heatmap_count: data.heatmapData?.length || 0,
@@ -389,14 +388,14 @@ export default function Estadisticas() {
             setHeatmapData(data.heatmapData || [])
 
             // Polylines (calles con geometría)
-            console.log("[v0] Polylines recibidos:", data.polylinesMock?.length || 0)
+            console.log("Polylines recibidos:", data.polylinesMock?.length || 0)
             setPolylinesMock(data.polylinesMock || [])
 
             // Zonas heatmap (puntos de calor)
             setZonasHeatmapData(data.zonasHeatmapData || [])
 
             // Trayectorias (rutas completas de viajes)
-            console.log("[v0] Trayectorias recibidas:", data.trayectoriasMock?.length || 0)
+            console.log("Trayectorias recibidas:", data.trayectoriasMock?.length || 0)
             setTrayectoriasMock(data.trayectoriasMock || [])
 
             // Encontró estacionamiento por día
@@ -422,8 +421,8 @@ export default function Estadisticas() {
 
             setEvolucionTasas(data.evolucionTasas || [])
 
-            console.log("[v0] Regresion Hora Exito data:", data.regresionHoraExito)
-            console.log("[v0] Regresion Total Completados data:", data.regresionTotalCompletados)
+            console.log("Regresion Hora Exito data:", data.regresionHoraExito)
+            console.log("Regresion Total Completados data:", data.regresionTotalCompletados)
 
             setRegresionHoraExito(
                 data.regresionHoraExito || {
@@ -455,16 +454,14 @@ export default function Estadisticas() {
                 },
             )
 
-            setIsLoading(false) // Changed from setLoading to setIsLoading
+            setIsLoading(false) 
         } catch (err) {
-            console.error("[v0] Error fetching estadisticas:", err)
+            console.error("Error fetching estadisticas:", err)
             setError(err.response?.data?.message || "Error al cargar las estadísticas. Por favor, intenta de nuevo.")
-            setIsLoading(false) // Ensure loading state is reset on error
+            setIsLoading(false) 
         }
     }
 
-    // fetchRegresionHoraExito y fetchRegresionTotalCompletados ya no son necesarias
-    // porque fetchEstadisticas() ya trae todos los datos
 
     useEffect(() => {
         fetchEstadisticas()
@@ -1334,11 +1331,11 @@ export default function Estadisticas() {
                                     {heatmapView === "calles" &&
                                         polylinesMock.map((polyline) => {
                                             if (!polyline.latlngs || polyline.latlngs.length === 0) {
-                                                console.log("[v0] Polyline sin latlngs:", polyline.id)
+                                                console.log("Polyline sin latlngs:", polyline.id)
                                                 return null
                                             }
 
-                                            console.log("[v0] Renderizando polyline:", {
+                                            console.log("Renderizando polyline:", {
                                                 id: polyline.id,
                                                 latlngs_count: polyline.latlngs.length,
                                                 color: polyline.color,
@@ -1402,11 +1399,11 @@ export default function Estadisticas() {
                                     {heatmapView === "trayectorias" &&
                                         trayectoriasMock.map((trayectoria) => {
                                             if (!trayectoria.ruta || trayectoria.ruta.length === 0) {
-                                                console.log("[v0] Trayectoria sin ruta:", trayectoria.id)
+                                                console.log("Trayectoria sin ruta:", trayectoria.id)
                                                 return null
                                             }
 
-                                            console.log("[v0] Renderizando trayectoria:", {
+                                            console.log("Renderizando trayectoria:", {
                                                 id: trayectoria.id,
                                                 ruta_count: trayectoria.ruta.length,
                                                 first_point: trayectoria.ruta[0],

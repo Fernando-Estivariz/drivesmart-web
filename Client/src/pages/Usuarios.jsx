@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import styled from "styled-components"
 import axios from "axios"
 import { Sidebar } from "../components/Sidebar"
+import { HiUsers, HiEnvelope, HiPhone, HiMapPin } from "react-icons/hi2"
+import { MdEdit, MdDelete, MdSettings, MdPersonAdd } from "react-icons/md"
 
 export function Usuarios() {
     const common = {
@@ -24,65 +26,145 @@ export function Usuarios() {
         address: "",
     })
     const [modal, setModal] = useState(false)
+    const [accion, setAccion] = useState("")
 
-    const obtenerUsuarios = async () => {
-        const res = await axios.get(`${process.env.REACT_APP_API_URL}/usuarios`, common)
-        setUsuarios(res.data)
-    }
+    const obtenerUsuarios = useCallback(async () => {
+        try {
+            console.log("Fetching usuarios from:", `${process.env.REACT_APP_API_URL}/usuarios`)
+            const res = await axios.get(`${process.env.REACT_APP_API_URL}/usuarios`, common)
+            console.log("Usuarios fetched:", res.data)
+            setUsuarios(res.data)
+        } catch (error) {
+            console.error("Error fetching usuarios:", error.message)
+        }
+    }, [])
 
     const insertarUsuario = async () => {
         try {
+            console.log("Inserting usuario:", usuarioSeleccionado)
             const res = await axios.post(`${process.env.REACT_APP_API_URL}/usuarios`, usuarioSeleccionado, common)
-            setUsuarios(usuarios.concat(res.data))
+            console.log("Usuario inserted:", res.data)
+            setUsuarios([...usuarios, res.data])
             abrirCerrarModal()
         } catch (error) {
-            console.error(error)
+            console.error("Error inserting usuario:", error.message)
+            alert("Error al crear usuario: " + error.message)
         }
     }
 
     const actualizarUsuario = async () => {
-        const res = await axios.put(`${process.env.REACT_APP_API_URL}/usuarios/` + usuarioSeleccionado.id_user, usuarioSeleccionado, common)
-        const dataAuxiliar = usuarios.map((usuario) =>
-            usuario.id_user === usuarioSeleccionado.id_user ? res.data : usuario,
-        )
-        setUsuarios(dataAuxiliar)
-        abrirCerrarModal()
+        try {
+            console.log("Updating usuario:", usuarioSeleccionado)
+            const res = await axios.put(`${process.env.REACT_APP_API_URL}/usuarios/` + usuarioSeleccionado.id_user, usuarioSeleccionado, common)
+            console.log("Usuario updated:", res.data)
+            const dataAuxiliar = usuarios.map((usuario) =>
+                usuario.id_user === usuarioSeleccionado.id_user ? res.data : usuario,
+            )
+            setUsuarios(dataAuxiliar)
+            abrirCerrarModal()
+        } catch (error) {
+            console.error("Error updating usuario:", error.message)
+            alert("Error al actualizar usuario: " + error.message)
+        }
     }
 
     const eliminarUsuario = async () => {
-        await axios.delete(`${process.env.REACT_APP_API_URL}/usuarios/` + usuarioSeleccionado.id_user, common)
-        setUsuarios(usuarios.filter((usuario) => usuario.id_user !== usuarioSeleccionado.id_user))
+        try {
+            console.log("Deleting usuario with ID:", usuarioSeleccionado.id_user)
+            await axios.delete(`${process.env.REACT_APP_API_URL}/usuarios/` + usuarioSeleccionado.id_user, common)
+            console.log("Usuario deleted successfully")
+            setUsuarios(usuarios.filter((usuario) => usuario.id_user !== usuarioSeleccionado.id_user))
+            abrirCerrarModal()
+        } catch (error) {
+            console.error("Error deleting usuario:", error.message)
+            alert("Error al eliminar usuario: " + error.message)
+        }
     }
 
     const abrirCerrarModal = () => {
+        if (!modal) {
+            setUsuarioSeleccionado({
+                id_user: 0,
+                username: "",
+                password: "",
+                email: "",
+                phone: "",
+                address: "",
+            })
+            setAccion("")
+        }
         setModal(!modal)
     }
 
     const seleccionarUsuario = (usuario, caso) => {
+        console.log("seleccionarUsuario - Usuario:", usuario, "Caso:", caso)
         setUsuarioSeleccionado(usuario)
-        caso === "Editar" ? abrirCerrarModal() : eliminarUsuario()
+        setAccion(caso)
+        setModal(true)
     }
 
     useEffect(() => {
         obtenerUsuarios()
-    }, [])
+    }, [obtenerUsuarios])
 
     return (
         <Container>
             <Sidebar />
             <MainContent>
-                <Title>Gestión de Usuarios</Title>
-                <AddButton onClick={abrirCerrarModal}>Agregar +</AddButton>
+                <Title>
+                    <HiUsers size={32} style={{ marginRight: '12px' }} />
+                    Gestión de Usuarios
+                </Title>
+                <AddButton onClick={() => {
+                    setUsuarioSeleccionado({
+                        id_user: 0,
+                        username: "",
+                        password: "",
+                        email: "",
+                        phone: "",
+                        address: "",
+                    })
+                    setAccion("Crear")
+                    setModal(true)
+                }}>
+                    <MdPersonAdd size={20} style={{ marginRight: '8px' }} />
+                    Agregar
+                </AddButton>
 
                 <TableContainer>
                     <Table>
                         <thead>
                             <TableHeader>
-                                <HeaderCell>👤 Usuario</HeaderCell>
-                                <HeaderCell>📧 Email</HeaderCell>
-                                <HeaderCell>📱 Teléfono</HeaderCell>
-                                <HeaderCell>📍 Dirección</HeaderCell>
-                                <HeaderCell>⚙️ Acciones</HeaderCell>
+                                <HeaderCell>
+                                    <HeaderContent>
+                                        <HiUsers size={18} />
+                                        <span>Usuario</span>
+                                    </HeaderContent>
+                                </HeaderCell>
+                                <HeaderCell>
+                                    <HeaderContent>
+                                        <HiEnvelope size={18} />
+                                        <span>Email</span>
+                                    </HeaderContent>
+                                </HeaderCell>
+                                <HeaderCell>
+                                    <HeaderContent>
+                                        <HiPhone size={18} />
+                                        <span>Teléfono</span>
+                                    </HeaderContent>
+                                </HeaderCell>
+                                <HeaderCell>
+                                    <HeaderContent>
+                                        <HiMapPin size={18} />
+                                        <span>Dirección</span>
+                                    </HeaderContent>
+                                </HeaderCell>
+                                <HeaderCell>
+                                    <HeaderContent>
+                                        <MdSettings size={18} />
+                                        <span>Acciones</span>
+                                    </HeaderContent>
+                                </HeaderCell>
                             </TableHeader>
                         </thead>
                         <tbody>
@@ -96,8 +178,12 @@ export function Usuarios() {
                                     <DataCell>{usuario.phone}</DataCell>
                                     <DataCell>{usuario.address || "NINGUNA"}</DataCell>
                                     <ActionCell>
-                                        <EditButton onClick={() => seleccionarUsuario(usuario, "Editar")}>✏️</EditButton>
-                                        <DeleteButton onClick={() => seleccionarUsuario(usuario, "Eliminar")}>🗑️</DeleteButton>
+                                        <EditButton onClick={() => seleccionarUsuario(usuario, "Editar")}>
+                                            <MdEdit size={16} />
+                                        </EditButton>
+                                        <DeleteButton onClick={() => seleccionarUsuario(usuario, "Eliminar")}>
+                                            <MdDelete size={16} />
+                                        </DeleteButton>
                                     </ActionCell>
                                 </TableRow>
                             ))}
@@ -109,64 +195,81 @@ export function Usuarios() {
                     <>
                         <ModalOverlay onClick={abrirCerrarModal} />
                         <Modal>
-                            <ModalHeader>{usuarioSeleccionado.id_user ? "Editar Usuario" : "Crear Usuario"}</ModalHeader>
+                            {accion === "Eliminar" ? (
+                                <>
+                                    <ModalHeader>Confirmar Eliminación</ModalHeader>
+                                    <ConfirmText>
+                                        ¿Estás seguro de que deseas eliminar al usuario <strong>{usuarioSeleccionado.username}</strong>?
+                                    </ConfirmText>
+                                    <ButtonGroup>
+                                        <CancelButton onClick={abrirCerrarModal}>Cancelar</CancelButton>
+                                        <DeleteConfirmButton onClick={eliminarUsuario}>
+                                            Eliminar
+                                        </DeleteConfirmButton>
+                                    </ButtonGroup>
+                                </>
+                            ) : (
+                                <>
+                                    <ModalHeader>{usuarioSeleccionado.id_user ? "Editar Usuario" : "Crear Usuario"}</ModalHeader>
 
-                            <FormGroup>
-                                <Label>Username:</Label>
-                                <Input
-                                    type="text"
-                                    name="username"
-                                    onChange={(e) => setUsuarioSeleccionado({ ...usuarioSeleccionado, username: e.target.value })}
-                                    value={usuarioSeleccionado.username}
-                                />
-                            </FormGroup>
+                                    <FormGroup>
+                                        <Label>Username:</Label>
+                                        <Input
+                                            type="text"
+                                            name="username"
+                                            onChange={(e) => setUsuarioSeleccionado({ ...usuarioSeleccionado, username: e.target.value })}
+                                            value={usuarioSeleccionado.username}
+                                        />
+                                    </FormGroup>
 
-                            <FormGroup>
-                                <Label>Password:</Label>
-                                <Input
-                                    type="password"
-                                    name="password"
-                                    onChange={(e) => setUsuarioSeleccionado({ ...usuarioSeleccionado, password: e.target.value })}
-                                    value={usuarioSeleccionado.password}
-                                />
-                            </FormGroup>
+                                    <FormGroup>
+                                        <Label>Password:</Label>
+                                        <Input
+                                            type="password"
+                                            name="password"
+                                            onChange={(e) => setUsuarioSeleccionado({ ...usuarioSeleccionado, password: e.target.value })}
+                                            value={usuarioSeleccionado.password}
+                                        />
+                                    </FormGroup>
 
-                            <FormGroup>
-                                <Label>Email:</Label>
-                                <Input
-                                    type="email"
-                                    name="email"
-                                    onChange={(e) => setUsuarioSeleccionado({ ...usuarioSeleccionado, email: e.target.value })}
-                                    value={usuarioSeleccionado.email}
-                                />
-                            </FormGroup>
+                                    <FormGroup>
+                                        <Label>Email:</Label>
+                                        <Input
+                                            type="email"
+                                            name="email"
+                                            onChange={(e) => setUsuarioSeleccionado({ ...usuarioSeleccionado, email: e.target.value })}
+                                            value={usuarioSeleccionado.email}
+                                        />
+                                    </FormGroup>
 
-                            <FormGroup>
-                                <Label>Phone:</Label>
-                                <Input
-                                    type="text"
-                                    name="phone"
-                                    onChange={(e) => setUsuarioSeleccionado({ ...usuarioSeleccionado, phone: e.target.value })}
-                                    value={usuarioSeleccionado.phone}
-                                />
-                            </FormGroup>
+                                    <FormGroup>
+                                        <Label>Phone:</Label>
+                                        <Input
+                                            type="text"
+                                            name="phone"
+                                            onChange={(e) => setUsuarioSeleccionado({ ...usuarioSeleccionado, phone: e.target.value })}
+                                            value={usuarioSeleccionado.phone}
+                                        />
+                                    </FormGroup>
 
-                            <FormGroup>
-                                <Label>Address:</Label>
-                                <Input
-                                    type="text"
-                                    name="address"
-                                    onChange={(e) => setUsuarioSeleccionado({ ...usuarioSeleccionado, address: e.target.value })}
-                                    value={usuarioSeleccionado.address}
-                                />
-                            </FormGroup>
+                                    <FormGroup>
+                                        <Label>Address:</Label>
+                                        <Input
+                                            type="text"
+                                            name="address"
+                                            onChange={(e) => setUsuarioSeleccionado({ ...usuarioSeleccionado, address: e.target.value })}
+                                            value={usuarioSeleccionado.address}
+                                        />
+                                    </FormGroup>
 
-                            <ButtonGroup>
-                                <CancelButton onClick={abrirCerrarModal}>Cancelar</CancelButton>
-                                <SaveButton onClick={() => (usuarioSeleccionado.id_user ? actualizarUsuario() : insertarUsuario())}>
-                                    Guardar
-                                </SaveButton>
-                            </ButtonGroup>
+                                    <ButtonGroup>
+                                        <CancelButton onClick={abrirCerrarModal}>Cancelar</CancelButton>
+                                        <SaveButton onClick={() => (usuarioSeleccionado.id_user ? actualizarUsuario() : insertarUsuario())}>
+                                            Guardar
+                                        </SaveButton>
+                                    </ButtonGroup>
+                                </>
+                            )}
                         </Modal>
                     </>
                 )}
@@ -177,7 +280,6 @@ export function Usuarios() {
 
 export default Usuarios
 
-// Styled Components
 const Container = styled.div`
     display: flex;
     min-height: 100vh;
@@ -202,11 +304,9 @@ const Title = styled.h1`
     margin-bottom: 30px;
     font-size: 2.5rem;
     font-weight: 800;
-    
-    &::before {
-        content: '👥 ';
-        margin-right: 10px;
-    }
+    display: flex;
+    align-items: center;
+    justify-content: center;
 `
 
 const AddButton = styled.button`
@@ -221,6 +321,8 @@ const AddButton = styled.button`
     font-size: 1rem;
     box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
     transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
     
     &:hover {
         background: linear-gradient(135deg, #e55a2b 0%, #e67332 100%);
@@ -254,6 +356,12 @@ const HeaderCell = styled.th`
     font-weight: 600;
     font-size: 0.95rem;
     border: none;
+`
+
+const HeaderContent = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
 `
 
 const TableRow = styled.tr`
@@ -321,7 +429,6 @@ const EditButton = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
     transition: all 0.3s ease;
     
     &:hover {
@@ -341,7 +448,6 @@ const DeleteButton = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
     transition: all 0.3s ease;
     
     &:hover {
@@ -454,5 +560,30 @@ const SaveButton = styled.button`
         background: linear-gradient(135deg, #e55a2b 0%, #e67332 100%);
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+    }
+`
+
+const ConfirmText = styled.p`
+    color: #000000;
+    font-size: 1rem;
+    text-align: center;
+    margin-bottom: 30px;
+    line-height: 1.5;
+`
+
+const DeleteConfirmButton = styled.button`
+    padding: 12px 24px;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    background: #ef4444;
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    
+    &:hover {
+        background: #dc2626;
+        transform: translateY(-2px);
     }
 `

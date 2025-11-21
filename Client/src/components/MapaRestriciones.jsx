@@ -3,11 +3,13 @@
 import { useRef, useState, useEffect } from "react"
 import { MapContainer, TileLayer, FeatureGroup, Polygon, Popup } from "react-leaflet"
 import { EditControl } from "react-leaflet-draw"
+import { MdDelete, MdEdit, MdCheckCircle, MdClose } from "react-icons/md"
+import { TbRoad } from "react-icons/tb"
 import "leaflet/dist/leaflet.css"
 import "leaflet-draw/dist/leaflet.draw.css"
 import axios from "axios"
 
-const API_URL = process.env.REACT_APP_API_URL || "https://41e248bfedcf.ngrok-free.app"
+const API_URL = process.env.REACT_APP_API_URL 
 
 const MapaRestricciones = () => {
     const [mapLayers, setMapLayers] = useState([])
@@ -15,8 +17,12 @@ const MapaRestricciones = () => {
     const [currentLayer, setCurrentLayer] = useState(null)
     const [modal, setModal] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
+    const [editingLayerId, setEditingLayerId] = useState(null)
+    const [isEditingPoints, setIsEditingPoints] = useState(false)
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null)
     const nextDbIdRef = useRef(1)
     const layerIdMapRef = useRef({})
+    const editingLayerRef = useRef(null)
     const ZOOM_LEVEL = 15
     const mapRef = useRef()
 
@@ -30,11 +36,7 @@ const MapaRestricciones = () => {
     }
 
     const getColorFromRestriction = () => {
-        return "#ef4444" // Rojo para todas las restricciones vehiculares
-    }
-
-    const getIconFromRestriction = () => {
-        return "🚦" // Icono de semáforo para restricción vehicular
+        return "#ef4444"
     }
 
     useEffect(() => {
@@ -44,11 +46,10 @@ const MapaRestricciones = () => {
                 const response = await axios.get(`${API_URL}/restricciones`, common)
                 const { data, nextId } = response.data
 
-                console.log("[v0] Frontend - Received data:", data.length, "restricciones")
-                console.log("[v0] Frontend - Next ID from backend:", nextId)
+                console.log("Frontend - Received data:", data.length, "restricciones")
+                console.log("Frontend - Next ID from backend:", nextId)
 
                 nextDbIdRef.current = nextId
-
                 setMapLayers(data)
             } catch (error) {
                 console.error("Error fetching restricciones:", error)
@@ -63,10 +64,9 @@ const MapaRestricciones = () => {
         const { layer } = e
         const dbId = nextDbIdRef.current
 
-        console.log("[v0] Frontend - Creating new layer with ID:", dbId)
+        console.log("Frontend - Creating new layer with ID:", dbId)
 
         nextDbIdRef.current = nextDbIdRef.current + 1
-
         layerIdMapRef.current[layer._leaflet_id] = dbId
 
         const newLayer = {
@@ -76,86 +76,147 @@ const MapaRestricciones = () => {
             restriction: "RESTRICCIÓN VEHICULAR",
         }
         setCurrentLayer(newLayer)
+        setEditingLayerId(null)
         setModal(true)
     }
 
-    const handleEdit = (e) => {
-        const {
-            layers: { _layers },
-        } = e
+    const handlePolygonClick = (layer) => {
+        const dbId = layerIdMapRef.current[layer._leaflet_id]
+        const layerData = mapLayers.find((l) => l.id === dbId)
 
-        Object.values(_layers).forEach(async (layer) => {
-            const dbId = layerIdMapRef.current[layer._leaflet_id]
-            const layerData = mapLayers.find((l) => l.id === dbId)
-
-            console.log("[v0] Frontend - Editing layer with Leaflet ID:", layer._leaflet_id, "DB ID:", dbId)
-
-            if (!layerData) {
-                console.error("[v0] Frontend - Layer not found for DB ID:", dbId)
-                return
-            }
-
-            const updatedLayer = {
-                id: layerData.id,
-                latlngs: layer.getLatLngs()[0].map((point) => ({ lat: point.lat, lng: point.lng })),
-                type: "polygon",
-                restriction: layerData.restriction,
-            }
-
-            console.log("[v0] Frontend - Updating layer:", updatedLayer)
-
-            try {
-                await axios.put(`${API_URL}/restricciones/${layerData.id}`, updatedLayer, common)
-                setMapLayers((prev) => prev.map((l) => (l.id === updatedLayer.id ? updatedLayer : l)))
-                console.log("[v0] Frontend - Layer updated successfully")
-            } catch (error) {
-                console.error("Error updating restricción:", error)
-                alert("Error al actualizar la restricción")
-            }
-        })
+        if (layerData) {
+            setCurrentLayer(layerData)
+            setEditingLayerId(dbId)
+            setIsEditingPoints(false)
+            setModal(true)
+        }
     }
 
-    const handleDelete = (e) => {
-        const {
-            layers: { _layers },
-        } = e
+    const enablePointEditing = () => {
+        if (editingLayerId && mapRef.current) {
+            const leafletId = Object.keys(layerIdMapRef.current).find(
+                (key) => layerIdMapRef.current[key] === editingLayerId
+            )
+            if (leafletId) {
+                const layer = mapRef.current._layers[leafletId]
+                if (layer && layer.editing) {
+                    editingLayerRef.current = layer
 
-        Object.values(_layers).forEach(async (layer) => {
-            const dbId = layerIdMapRef.current[layer._leaflet_id]
-            const layerData = mapLayers.find((l) => l.id === dbId)
+                    if (layer.on) {
+                        layer.on("editstart", () => {
+                            console.log("Editing started for layer:", editingLayerId)
+                        })
+                        layer.on("editmove", () => {
+                            console.log("Layer points changed during edit")
+                        })
+                        layer.on("editstop", () => {
+                            console.log("Editing stopped for layer:", editingLayerId)
+                        })
+                    }
 
-            console.log("[v0] Frontend - Deleting layer with Leaflet ID:", layer._leaflet_id, "DB ID:", dbId)
+                    layer.editing.enable()
+                    setIsEditingPoints(true)
+                    console.log("Point editing enabled for layer:", editingLayerId)
+                }
+            }
+        }
+    }
 
-            if (!layerData) {
-                console.error("[v0] Frontend - Layer not found for DB ID:", dbId)
-                return
+    const saveLineEdit = async () => {
+        if (!editingLayerId || !editingLayerRef.current) return
+
+        const layer = editingLayerRef.current
+
+        let latlngs = []
+        try {
+            if (layer.getLatLngs && typeof layer.getLatLngs === 'function') {
+                const coords = layer.getLatLngs()
+                if (Array.isArray(coords) && coords.length > 0) {
+                    latlngs = Array.isArray(coords[0]) ? coords[0] : coords
+                }
+            }
+        } catch (err) {
+            console.error("Error extracting coordinates:", err)
+        }
+
+        if (latlngs.length === 0) {
+            alert("Error: No se pudieron obtener las coordenadas del polígono")
+            return
+        }
+
+        const updatedLayer = {
+            id: editingLayerId,
+            latlngs: latlngs.map((point) => ({
+                lat: point.lat || point[0],
+                lng: point.lng || point[1]
+            })),
+            type: "polygon",
+            restriction: currentLayer?.restriction || "RESTRICCIÓN VEHICULAR",
+        }
+
+        console.log("Frontend - Saving edited layer with", updatedLayer.latlngs.length, "points")
+
+        try {
+            setIsLoading(true)
+            await axios.put(`${API_URL}/restricciones/${editingLayerId}`, updatedLayer, common)
+
+            setMapLayers((prev) => prev.map((l) => (l.id === editingLayerId ? updatedLayer : l)))
+            setCurrentLayer(updatedLayer)
+
+            if (layer.editing) {
+                layer.editing.disable()
+            }
+            setIsEditingPoints(false)
+            editingLayerRef.current = null
+
+            console.log("Frontend - Layer saved successfully")
+        } catch (error) {
+            console.error("Error updating restricción:", error)
+            alert("Error al actualizar la restricción")
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const deleteLayer = async (id) => {
+        console.log("Frontend - Deleting layer with ID:", id)
+
+        try {
+            setIsLoading(true)
+            await axios.delete(`${API_URL}/restricciones/${id}`, common)
+            setMapLayers((prev) => prev.filter((l) => l.id !== id))
+
+            const leafletId = Object.keys(layerIdMapRef.current).find(
+                (key) => layerIdMapRef.current[key] === id
+            )
+            if (leafletId) {
+                delete layerIdMapRef.current[leafletId]
             }
 
-            console.log("[v0] Frontend - Deleting layer:", layerData)
-
-            try {
-                await axios.delete(`${API_URL}/restricciones/${layerData.id}`, common)
-                setMapLayers((prev) => prev.filter((l) => l.id !== layerData.id))
-                delete layerIdMapRef.current[layer._leaflet_id]
-                console.log("[v0] Frontend - Layer deleted successfully")
-            } catch (error) {
-                console.error("Error deleting restricción:", error)
-                alert("Error al eliminar la restricción")
-            }
-        })
+            setModal(false)
+            setCurrentLayer(null)
+            setEditingLayerId(null)
+            setDeleteConfirmId(null)
+            console.log("Frontend - Layer deleted successfully")
+        } catch (error) {
+            console.error("Error deleting restricción:", error)
+            alert("Error al eliminar la restricción")
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     const confirmModal = async () => {
         setIsLoading(true)
         try {
-            console.log("[v0] Frontend - Saving layer:", currentLayer)
+            console.log("Frontend - Saving layer:", currentLayer)
 
             await axios.post(`${API_URL}/restricciones`, currentLayer, common)
             setMapLayers((prev) => [...prev, currentLayer])
             setModal(false)
             setCurrentLayer(null)
 
-            console.log("[v0] Frontend - Layer saved successfully")
+            console.log("Frontend - Layer saved successfully")
         } catch (error) {
             console.error("Error saving restricción:", error)
             alert("Error al guardar la restricción")
@@ -180,14 +241,13 @@ const MapaRestricciones = () => {
                         <EditControl
                             position="topright"
                             onCreated={handleCreate}
-                            onEdited={handleEdit}
-                            onDeleted={handleDelete}
                             draw={{
                                 rectangle: false,
                                 polyline: false,
                                 circle: false,
                                 circlemarker: false,
                                 marker: false,
+                                edit: false,
                                 polygon: {
                                     shapeOptions: {
                                         color: "#ef4444",
@@ -210,14 +270,17 @@ const MapaRestricciones = () => {
                                 eventHandlers={{
                                     add: (e) => {
                                         layerIdMapRef.current[e.target._leaflet_id] = layer.id
-                                        console.log("[v0] Frontend - Mapped Leaflet ID:", e.target._leaflet_id, "to DB ID:", layer.id)
+                                        console.log("Frontend - Mapped Leaflet ID:", e.target._leaflet_id, "to DB ID:", layer.id)
+                                    },
+                                    click: (e) => {
+                                        handlePolygonClick(e.target)
                                     },
                                 }}
                             >
                                 <Popup className="custom-popup">
                                     <div style={styles.popupContent}>
                                         <div style={styles.popupHeader}>
-                                            <div style={styles.popupIcon}>{getIconFromRestriction()}</div>
+                                            <TbRoad size={20} color="#ef4444" />
                                         </div>
                                         <div style={styles.popupText}>
                                             <strong>{layer.restriction || "Sin restricción"}</strong>
@@ -232,7 +295,7 @@ const MapaRestricciones = () => {
                 {/* Leyenda flotante */}
                 <div style={styles.legend}>
                     <h3 style={styles.legendTitle}>
-                        <span style={styles.legendIcon}>🚦</span>
+                        <TbRoad size={20} />
                         Restricciones Vehiculares
                     </h3>
                     <div style={styles.legendItems}>
@@ -246,60 +309,141 @@ const MapaRestricciones = () => {
 
             {modal && (
                 <>
-                    <div style={styles.modalOverlay} onClick={() => setModal(false)}></div>
-                    <div style={styles.modal}>
+                    {!isEditingPoints && <div style={styles.modalOverlay} onClick={() => setModal(false)}></div>}
+                    <div style={{ ...styles.modal, ...(isEditingPoints ? styles.modalMinimized : {}) }}>
                         <div style={styles.modalHeader}>
                             <h2 style={styles.modalTitle}>
-                                <span style={styles.modalIcon}>🚦</span>
+                                <TbRoad size={24} />
                                 Restricción Vehicular
                             </h2>
-                            <button style={styles.closeButton} onClick={() => setModal(false)}>
-                                ✕
+                            {!isEditingPoints && (
+                                <button style={styles.closeButton} onClick={() => setModal(false)}>
+                                    <MdClose size={20} />
+                                </button>
+                            )}
+                        </div>
+
+                        {isEditingPoints ? (
+                            <div style={styles.minimizedContent}>
+                                <div style={styles.minimizedText}>Arrastra los puntos en el mapa para ajustar la línea</div>
+                                <button
+                                    style={styles.finishButton}
+                                    onClick={saveLineEdit}
+                                    disabled={isLoading}
+                                >
+                                    <MdCheckCircle size={18} />
+                                    Finalizar Edición
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <div style={styles.modalContent}>
+                                    <p style={styles.modalDescription}>
+                                        {editingLayerId ? "Edita los datos de la restricción vehicular" : "Se creará una zona de restricción vehicular en el área seleccionada"}
+                                    </p>
+
+                                    <div style={styles.previewCard}>
+                                        <div style={styles.previewHeader}>
+                                            <TbRoad size={24} color="#ef4444" />
+                                        </div>
+                                        <div style={styles.previewText}>RESTRICCIÓN VEHICULAR</div>
+                                        <div
+                                            style={{
+                                                ...styles.previewColor,
+                                                backgroundColor: getColorFromRestriction(),
+                                            }}
+                                        ></div>
+                                    </div>
+
+                                    {editingLayerId && (
+                                        <div style={styles.editButtonsGroup}>
+                                            <button
+                                                style={styles.editPointsButton}
+                                                onClick={enablePointEditing}
+                                                disabled={isLoading}
+                                            >
+                                                <MdEdit size={18} />
+                                                Ajustar Posición de la Línea
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div style={styles.modalActions}>
+                                    <button style={styles.cancelButton} onClick={() => setModal(false)} disabled={isLoading}>
+                                        Cancelar
+                                    </button>
+                                    {editingLayerId ? (
+                                        <button
+                                            style={{
+                                                ...styles.deleteButton,
+                                                ...(isLoading ? styles.buttonDisabled : {}),
+                                            }}
+                                            onClick={() => setDeleteConfirmId(editingLayerId)}
+                                            disabled={isLoading}
+                                        >
+                                            <MdDelete size={18} />
+                                            Eliminar
+                                        </button>
+                                    ) : (
+                                        <button
+                                            style={{
+                                                ...styles.confirmButton,
+                                                ...(isLoading ? styles.buttonDisabled : {}),
+                                            }}
+                                            onClick={confirmModal}
+                                            disabled={isLoading}
+                                        >
+                                            {isLoading ? (
+                                                <>
+                                                    <div style={styles.buttonSpinner}></div>
+                                                    Guardando...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <MdCheckCircle size={18} />
+                                                    Confirmar
+                                                </>
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </>
+            )}
+
+            {deleteConfirmId && (
+                <>
+                    <div style={styles.modalOverlay} onClick={() => setDeleteConfirmId(null)}></div>
+                    <div style={styles.modal}>
+                        <div style={styles.modalHeader}>
+                            <h2 style={styles.modalTitle}>Confirmar Eliminación</h2>
+                            <button style={styles.closeButton} onClick={() => setDeleteConfirmId(null)}>
+                                <MdClose size={20} />
                             </button>
                         </div>
-
                         <div style={styles.modalContent}>
-                            <p style={styles.modalDescription}>
-                                Se creará una zona de restricción vehicular en el área seleccionada.
-                            </p>
-
-                            <div style={styles.previewCard}>
-                                <div style={styles.previewHeader}>
-                                    <div style={styles.previewIcon}>{getIconFromRestriction()}</div>
-                                </div>
-                                <div style={styles.previewText}>RESTRICCIÓN VEHICULAR</div>
-                                <div
-                                    style={{
-                                        ...styles.previewColor,
-                                        backgroundColor: getColorFromRestriction(),
-                                    }}
-                                ></div>
-                            </div>
+                            <p style={styles.modalDescription}>¿Estás seguro de que deseas eliminar esta restricción vehicular? Esta acción no se puede deshacer.</p>
                         </div>
-
                         <div style={styles.modalActions}>
-                            <button style={styles.cancelButton} onClick={() => setModal(false)} disabled={isLoading}>
+                            <button style={styles.cancelButton} onClick={() => setDeleteConfirmId(null)} disabled={isLoading}>
                                 Cancelar
                             </button>
                             <button
                                 style={{
-                                    ...styles.confirmButton,
+                                    ...styles.deleteButton,
                                     ...(isLoading ? styles.buttonDisabled : {}),
                                 }}
-                                onClick={confirmModal}
+                                onClick={() => {
+                                    console.log("Deleting restricción with ID:", deleteConfirmId)
+                                    deleteLayer(deleteConfirmId)
+                                }}
                                 disabled={isLoading}
                             >
-                                {isLoading ? (
-                                    <>
-                                        <div style={styles.buttonSpinner}></div>
-                                        Guardando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>✓</span>
-                                        Confirmar
-                                    </>
-                                )}
+                                <MdDelete size={18} />
+                                Eliminar
                             </button>
                         </div>
                     </div>
@@ -377,9 +521,6 @@ const styles = {
         alignItems: "center",
         gap: "8px",
     },
-    legendIcon: {
-        fontSize: "1.2rem",
-    },
     legendItems: {
         display: "flex",
         flexDirection: "column",
@@ -411,9 +552,6 @@ const styles = {
         alignItems: "center",
         gap: "12px",
     },
-    popupIcon: {
-        fontSize: "1.5rem",
-    },
     popupText: {
         fontSize: "0.95rem",
         color: "#000000",
@@ -439,9 +577,17 @@ const styles = {
         boxShadow: "0 25px 50px rgba(0, 0, 0, 0.3)",
         zIndex: 1600,
         width: "90%",
-        maxWidth: "550px",
+        maxWidth: "380px",
         border: "2px solid rgba(255, 107, 53, 0.2)",
         overflow: "hidden",
+    },
+    modalMinimized: {
+        top: "auto",
+        left: "auto",
+        bottom: "20px",
+        right: "20px",
+        transform: "none",
+        maxWidth: "320px",
     },
     modalHeader: {
         display: "flex",
@@ -460,9 +606,6 @@ const styles = {
         display: "flex",
         alignItems: "center",
         gap: "12px",
-    },
-    modalIcon: {
-        fontSize: "1.8rem",
     },
     closeButton: {
         background: "none",
@@ -502,9 +645,6 @@ const styles = {
         alignItems: "center",
         gap: "12px",
         marginBottom: "8px",
-    },
-    previewIcon: {
-        fontSize: "1.5rem",
     },
     previewText: {
         fontSize: "0.95rem",
@@ -552,6 +692,21 @@ const styles = {
         transition: "all 0.3s ease",
         boxShadow: "0 4px 15px rgba(255, 107, 53, 0.3)",
     },
+    deleteButton: {
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        padding: "12px 24px",
+        fontSize: "1rem",
+        fontWeight: "600",
+        border: "none",
+        borderRadius: "12px",
+        backgroundColor: "#ef4444",
+        color: "#ffffff",
+        cursor: "pointer",
+        transition: "all 0.3s ease",
+        boxShadow: "0 4px 15px rgba(239, 68, 68, 0.3)",
+    },
     buttonDisabled: {
         opacity: 0.7,
         cursor: "not-allowed",
@@ -563,6 +718,54 @@ const styles = {
         borderTop: "2px solid #ffffff",
         borderRadius: "50%",
         animation: "spin 1s linear infinite",
+    },
+    minimizedContent: {
+        padding: "16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+        alignItems: "center",
+    },
+    minimizedText: {
+        fontSize: "0.9rem",
+        color: "#ff6b35",
+        fontWeight: "600",
+        textAlign: "center",
+    },
+    finishButton: {
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        padding: "10px 20px",
+        fontSize: "0.95rem",
+        fontWeight: "600",
+        border: "none",
+        borderRadius: "12px",
+        backgroundColor: "#ff6b35",
+        color: "#ffffff",
+        cursor: "pointer",
+        transition: "all 0.3s ease",
+    },
+    editButtonsGroup: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+        marginTop: "16px",
+    },
+    editPointsButton: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8px",
+        padding: "12px 16px",
+        fontSize: "0.95rem",
+        fontWeight: "600",
+        border: "2px solid #ff6b35",
+        borderRadius: "12px",
+        backgroundColor: "#fff",
+        color: "#ff6b35",
+        cursor: "pointer",
+        transition: "all 0.3s ease",
     },
 }
 
@@ -622,6 +825,12 @@ if (typeof document !== "undefined") {
         }
         
         .confirm-button:hover:not(:disabled) {
+            background-color: #e55a2b;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+        
+        .delete-button:hover:not(:disabled) {
             background-color: #e55a2b;
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
