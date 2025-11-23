@@ -15,22 +15,22 @@ app.use(
 const PORT = process.env.PORT || 4000
 
 function getColorByIntensity(intensidad) {
-    if (intensidad >= 80) return "#dc2626" 
-    if (intensidad >= 60) return "#ea580c" 
-    if (intensidad >= 40) return "#f59e0b" 
-    if (intensidad >= 20) return "#fbbf24" 
-    return "#84cc16" 
+    if (intensidad >= 80) return "#dc2626" // Rojo intenso
+    if (intensidad >= 60) return "#ea580c" // Naranja oscuro
+    if (intensidad >= 40) return "#f59e0b" // Naranja
+    if (intensidad >= 20) return "#fbbf24" // Amarillo
+    return "#84cc16" // Verde
 }
 
 //VALIDACION DEL LOGIN CON LA BD
 app.post("/login", (req, res) => {
-    console.log("/login body:", req.body)
+    console.log("▶️  /login body:", req.body)
     const sql = "SELECT * FROM usuarios WHERE email= $1 AND password= $2"
     const VALUES = [req.body.username, req.body.password]
     pool.query(sql, VALUES, (err, data) => {
         if (err) return res.json("Login Failed")
         if (data.rows.length === 0) return res.json("Invalid username or password")
-        console.log("/login rows:", data.rows)
+        console.log("🗃️  /login rows:", data.rows)
         return res.json("Login Successful")
     })
 })
@@ -38,12 +38,12 @@ app.post("/login", (req, res) => {
 //CRUD DE USUARIOS ADMINISTRATIVOS
 app.get("/usuarios", async (req, res) => {
     try {
-        console.log("GET /usuarios - Fetching all usuarios")
+        console.log("[v0] GET /usuarios - Fetching all usuarios")
         const allUsuarios = await pool.query("SELECT * FROM usuarios")
-        console.log("Found", allUsuarios.rows.length, "usuarios")
+        console.log("[v0] Found", allUsuarios.rows.length, "usuarios")
         res.json(allUsuarios.rows)
     } catch (err) {
-        console.error("Error fetching usuarios:", err.message)
+        console.error("[v0] Error fetching usuarios:", err.message)
         res.status(500).json({ message: "Error fetching usuarios", error: err.message })
     }
 })
@@ -51,17 +51,17 @@ app.get("/usuarios", async (req, res) => {
 app.post("/usuarios", async (req, res) => {
     try {
         const { username, password, email, phone, address } = req.body
-        console.log("POST /usuarios - Inserting new usuario:", { username, email, phone })
+        console.log("[v0] POST /usuarios - Inserting new usuario:", { username, email, phone })
 
         const newUsuario = await pool.query(
             "INSERT INTO usuarios (username, password, email, phone, address) VALUES ($1, $2, $3, $4, $5) RETURNING *",
             [username, password, email, phone, address],
         )
 
-        console.log("Usuario inserted successfully with ID:", newUsuario.rows[0].id_user)
+        console.log("[v0] Usuario inserted successfully with ID:", newUsuario.rows[0].id_user)
         res.json(newUsuario.rows[0])
     } catch (err) {
-        console.error("Error inserting usuario:", err.message)
+        console.error("[v0] Error inserting usuario:", err.message)
         res.status(500).json({ message: "Error inserting usuario", error: err.message })
     }
 })
@@ -71,8 +71,8 @@ app.put("/usuarios/:id", async (req, res) => {
         const { id } = req.params
         const { username, password, email, phone, address } = req.body
 
-        console.log("PUT /usuarios/:id - Updating usuario with ID:", id)
-        console.log("New data:", { username, email, phone })
+        console.log("[v0] PUT /usuarios/:id - Updating usuario with ID:", id)
+        console.log("[v0] New data:", { username, email, phone })
 
         const updateUsuario = await pool.query(
             "UPDATE usuarios SET username = $1, password = $2, email = $3, phone = $4, address = $5 WHERE id_user = $6 RETURNING *",
@@ -80,14 +80,14 @@ app.put("/usuarios/:id", async (req, res) => {
         )
 
         if (updateUsuario.rows.length === 0) {
-            console.error("Usuario not found with ID:", id)
+            console.error("[v0] Usuario not found with ID:", id)
             return res.status(404).json({ message: "Usuario no encontrado" })
         }
 
-        console.log("Usuario updated successfully with ID:", id)
+        console.log("[v0] Usuario updated successfully with ID:", id)
         res.json(updateUsuario.rows[0])
     } catch (err) {
-        console.error("Error updating usuario:", err.message)
+        console.error("[v0] Error updating usuario:", err.message)
         res.status(500).json({ message: "Error updating usuario", error: err.message })
     }
 })
@@ -95,23 +95,22 @@ app.put("/usuarios/:id", async (req, res) => {
 app.delete("/usuarios/:id", async (req, res) => {
     try {
         const { id } = req.params
-        console.log("DELETE /usuarios/:id - Deleting usuario with ID:", id)
+        console.log("[v0] DELETE /usuarios/:id - Deleting usuario with ID:", id)
 
         const deleteUsuario = await pool.query("DELETE FROM usuarios WHERE id_user = $1 RETURNING *", [id])
 
         if (deleteUsuario.rows.length === 0) {
-            console.error("Usuario not found with ID:", id)
+            console.error("[v0] Usuario not found with ID:", id)
             return res.status(404).json({ message: "Usuario no encontrado" })
         }
 
-        console.log("Usuario deleted successfully with ID:", id)
+        console.log("[v0] Usuario deleted successfully with ID:", id)
         res.json({ success: true, message: "Usuario eliminado", deletedUser: deleteUsuario.rows[0] })
     } catch (err) {
-        console.error("Error deleting usuario:", err.message)
+        console.error("[v0] Error deleting usuario:", err.message)
         res.status(500).json({ message: "Error deleting usuario", error: err.message })
     }
 })
-
 
 //CRUD MAPEADO
 //CARGADO DE DATOS
@@ -149,77 +148,33 @@ app.get("/mapeado", async (req, res) => {
 app.post("/mapeado", (req, res) => {
     const { id, latlngs, type, restriction } = req.body
 
+    console.log("[v0] POST /mapeado - Received body:", JSON.stringify(req.body))
+    console.log("[v0] ID:", id, "Type:", type, "Restriction:", restriction)
+    console.log("[v0] Latlngs:", latlngs)
+
     if (!id || id === null || isNaN(id)) {
-        console.error("Invalid ID received:", id)
+        console.error("[v0] Invalid ID received:", id)
         return res.status(400).json({
             message: "ID inválido o faltante",
             error: "El ID debe ser un número válido",
         })
     }
 
-    console.log("Inserting new mapeado with ID:", id, "Type:", type, "Restriction:", restriction)
+    if (!latlngs || (Array.isArray(latlngs) && latlngs.length === 0)) {
+        console.error("[v0] Missing or empty latlngs")
+        return res.status(400).json({
+            message: "Coordenadas faltantes",
+            error: "Se requieren coordenadas válidas",
+        })
+    }
+
+    console.log("[v0] Inserting new mapeado with ID:", id, "Type:", type, "Restriction:", restriction)
 
     let geometryWKT
 
-    if (type === "polyline") {
-        //FIX: soportar tanto [{lat, lng}] como [[lat, lng]]
-        const coords = (latlngs || []).map((point) => {
-            if (Array.isArray(point)) {
-                const [lat, lng] = point
-                return { lat, lng }
-            }
-            return { lat: point.lat, lng: point.lng }
-        })
-
-        if (!coords.length) {
-            console.error("Empty latlngs for polyline insert")
-            return res.status(400).json({ message: "Latlngs vacíos para polyline" })
-        }
-
-        geometryWKT = `LINESTRING(${coords.map((p) => `${p.lng} ${p.lat}`).join(", ")})`
-    } else if (type === "polygon") {
-        // Asegurarse de que el primer y último punto sean iguales
-        const ring = latlngs[0]
-        if (ring[0].lat !== ring[ring.length - 1].lat || ring[0].lng !== ring[ring.length - 1].lng) {
-            ring.push(ring[0])
-        }
-        const ringWKT = ring.map((point) => `${point.lng} ${point.lat}`).join(", ")
-        geometryWKT = `POLYGON((${ringWKT}))`
-    } else if (type === "marker") {
-        const { lat, lng } = latlngs[0] 
-        geometryWKT = `POINT(${lng} ${lat})`
-    }
-
-    const sql =
-        "INSERT INTO public.mapeado (id, type, geometry, restriccion) VALUES ($1, $2, ST_Multi(ST_GeomFromText($3, 4326)), $4)"
-    const VALUES = [id, type, geometryWKT, restriction]
-
-    pool.query(sql, VALUES, (err, data) => {
-        if (err) {
-            console.error("Error inserting mapeado:", err.message)
-            return res.status(500).json({ message: "Error saving data", error: err.message })
-        }
-        console.log("Mapeado inserted successfully with ID:", id)
-        return res.json({ success: true, message: "Data saved successfully", id: id })
-    })
-})
-
-//EDITAR LO QUE ESTOY INTENTANDO AHORA
-app.put("/mapeado/:id", async (req, res) => {
     try {
-        const { id } = req.params
-        const { latlngs, type, restriction } = req.body
-
-        console.log("===== PUT /mapeado/:id DEBUG =====")
-        console.log("ID:", id)
-        console.log("Type:", type)
-        console.log("Restriction:", restriction)
-        console.log("Latlngs length:", latlngs?.length)
-
-        let geometryWKT
-
         if (type === "polyline") {
-            //FIX: soportar [{lat, lng}] y [[lat, lng]]
+            // 👈 FIX: soportar tanto [{lat, lng}] como [[lat, lng]]
             const coords = (latlngs || []).map((point) => {
                 if (Array.isArray(point)) {
                     const [lat, lng] = point
@@ -229,7 +184,73 @@ app.put("/mapeado/:id", async (req, res) => {
             })
 
             if (!coords.length) {
-                console.error("Empty latlngs for polyline update")
+                console.error("[v0] Empty latlngs for polyline insert")
+                return res.status(400).json({ message: "Latlngs vacíos para polyline" })
+            }
+
+            geometryWKT = `LINESTRING(${coords.map((p) => `${p.lng} ${p.lat}`).join(", ")})`
+        } else if (type === "polygon") {
+            // Asegurarse de que el primer y último punto sean iguales
+            const ring = latlngs[0]
+            if (ring[0].lat !== ring[ring.length - 1].lat || ring[0].lng !== ring[ring.length - 1].lng) {
+                ring.push(ring[0])
+            }
+            const ringWKT = ring.map((point) => `${point.lng} ${point.lat}`).join(", ")
+            geometryWKT = `POLYGON((${ringWKT}))`
+        } else if (type === "marker") {
+            const { lat, lng } = latlngs[0] // Para el marcador, se espera un array con un solo objeto { lat, lng }
+            geometryWKT = `POINT(${lng} ${lat})`
+        }
+
+        console.log("[v0] Generated WKT:", geometryWKT)
+    } catch (wktError) {
+        console.error("[v0] Error generating WKT:", wktError.message)
+        return res.status(400).json({
+            message: "Error al procesar coordenadas",
+            error: wktError.message,
+        })
+    }
+
+    const sql =
+        "INSERT INTO public.mapeado (id, type, geometry, restriccion) VALUES ($1, $2, ST_Multi(ST_GeomFromText($3, 4326)), $4)"
+    const VALUES = [id, type, geometryWKT, restriction]
+
+    pool.query(sql, VALUES, (err, data) => {
+        if (err) {
+            console.error("[v0] Error inserting mapeado:", err.message)
+            return res.status(500).json({ message: "Error saving data", error: err.message })
+        }
+        console.log("[v0] Mapeado inserted successfully with ID:", id)
+        return res.json({ success: true, message: "Data saved successfully", id: id })
+    })
+})
+
+//EDITAR
+app.put("/mapeado/:id", async (req, res) => {
+    try {
+        const { id } = req.params
+        const { latlngs, type, restriction } = req.body
+
+        console.log("[v0] ===== PUT /mapeado/:id DEBUG =====")
+        console.log("[v0] ID:", id)
+        console.log("[v0] Type:", type)
+        console.log("[v0] Restriction:", restriction)
+        console.log("[v0] Latlngs length:", latlngs?.length)
+
+        let geometryWKT
+
+        if (type === "polyline") {
+            // 👈 FIX: soportar [{lat, lng}] y [[lat, lng]]
+            const coords = (latlngs || []).map((point) => {
+                if (Array.isArray(point)) {
+                    const [lat, lng] = point
+                    return { lat, lng }
+                }
+                return { lat: point.lat, lng: point.lng }
+            })
+
+            if (!coords.length) {
+                console.error("[v0] Empty latlngs for polyline update")
                 return res.status(400).json({ message: "Latlngs vacíos para polyline" })
             }
 
@@ -244,22 +265,24 @@ app.put("/mapeado/:id", async (req, res) => {
             geometryWKT = `POLYGON((${ringWKT}))`
         }
 
-        console.log("Generated WKT:", geometryWKT)
+        console.log("[v0] Generated WKT:", geometryWKT)
 
         const sql =
             "UPDATE public.mapeado SET type = $1, geometry = ST_Multi(ST_GeomFromText($2, 4326)), restriccion = $3 WHERE id = $4"
         const VALUES = [type, geometryWKT, restriction, id]
 
+        console.log("[v0] SQL:", sql)
+        console.log("[v0] VALUES:", VALUES)
 
         await pool.query(sql, VALUES)
 
-        console.log("Mapeado updated successfully")
-        console.log("===== END PUT /mapeado/:id DEBUG =====")
+        console.log("[v0] Mapeado updated successfully")
+        console.log("[v0] ===== END PUT /mapeado/:id DEBUG =====")
 
         res.json("Mapeado actualizado")
     } catch (err) {
-        console.error("Error updating mapeado:", err.message)
-        console.error("Full error:", err)
+        console.error("[v0] Error updating mapeado:", err.message)
+        console.error("[v0] Full error:", err)
         res.status(500).json({ message: "Error updating map data", error: err.message })
     }
 })
@@ -282,20 +305,20 @@ app.delete("/mapeado/:id", async (req, res) => {
 //OBTENER TODAS LAS RESTRICCIONES
 app.get("/restricciones", async (req, res) => {
     try {
-        console.log("GET /restricciones - Fetching all restricciones from mapeado table")
+        console.log("[v0] GET /restricciones - Fetching all restricciones from mapeado table")
 
         const maxIdResult = await pool.query("SELECT COALESCE(MAX(id), 0) as max_id FROM mapeado")
         const maxId = Number.parseInt(maxIdResult.rows[0].max_id)
         const nextId = maxId + 1
 
-        console.log("MAX(id) from entire mapeado table:", maxId)
-        console.log("Next available ID:", nextId)
+        console.log("[v0] MAX(id) from entire mapeado table:", maxId)
+        console.log("[v0] Next available ID:", nextId)
 
         const result = await pool.query(
             "SELECT id, type, ST_AsGeoJSON(geometry) as geometry, restriccion FROM mapeado WHERE type = 'polygon'",
         )
 
-        console.log("Found", result.rows.length, "restricciones")
+        console.log("[v0] Found", result.rows.length, "restricciones")
 
         const restricciones = result.rows.map((row) => {
             // Convertir geometría de GeoJSON a formato latlngs
@@ -315,10 +338,10 @@ app.get("/restricciones", async (req, res) => {
             }
         })
 
-        console.log("Returning", restricciones.length, "restricciones with nextId:", nextId)
+        console.log("[v0] Returning", restricciones.length, "restricciones with nextId:", nextId)
         res.json({ data: restricciones, nextId: nextId })
     } catch (err) {
-        console.error("Error fetching restricciones:", err.message)
+        console.error("[v0] Error fetching restricciones:", err.message)
         res.status(500).json({ message: "Error getting restricciones data", error: err.message })
     }
 })
@@ -327,19 +350,19 @@ app.get("/restricciones", async (req, res) => {
 app.post("/restricciones", (req, res) => {
     const { id, latlngs, type, restriction } = req.body
 
-    console.log("POST /restricciones - Request body:", JSON.stringify(req.body, null, 2))
-    console.log("ID:", id, "Type:", type, "Restriction:", restriction)
-    console.log("Latlngs:", JSON.stringify(latlngs, null, 2))
+    console.log("[v0] POST /restricciones - Request body:", JSON.stringify(req.body, null, 2))
+    console.log("[v0] ID:", id, "Type:", type, "Restriction:", restriction)
+    console.log("[v0] Latlngs:", JSON.stringify(latlngs, null, 2))
 
     if (!id || id === null || isNaN(id)) {
-        console.error("Invalid ID received:", id)
+        console.error("[v0] Invalid ID received:", id)
         return res.status(400).json({
             message: "ID inválido o faltante",
             error: "El ID debe ser un número válido",
         })
     }
 
-    console.log("Inserting new restricción with ID:", id, "Type:", type, "Restriction:", restriction)
+    console.log("[v0] Inserting new restricción with ID:", id, "Type:", type, "Restriction:", restriction)
 
     let geometryWKT
 
@@ -351,19 +374,23 @@ app.post("/restricciones", (req, res) => {
         }
         const ringWKT = ring.map((point) => `${point.lng} ${point.lat}`).join(", ")
         geometryWKT = `POLYGON((${ringWKT}))`
-        console.log("Generated WKT:", geometryWKT)
+        console.log("[v0] Generated WKT:", geometryWKT)
     }
 
     const sql =
         "INSERT INTO mapeado (id, type, geometry, restriccion) VALUES ($1, $2, ST_Multi(ST_GeomFromText($3, 4326)), $4)"
     const VALUES = [id, type, geometryWKT, restriction]
 
+    console.log("[v0] SQL:", sql)
+    console.log("[v0] VALUES:", VALUES)
+
     pool.query(sql, VALUES, (err, data) => {
         if (err) {
-            console.error("Error inserting restricción:", err.message)
+            console.error("[v0] Error inserting restricción:", err.message)
+            console.error("[v0] Full error:", err)
             return res.status(500).json({ message: "Error saving restricción", error: err.message })
         }
-        console.log("Restricción inserted successfully with ID:", id)
+        console.log("[v0] Restricción inserted successfully with ID:", id)
         return res.json({ success: true, message: "Restricción saved successfully", id: id })
     })
 })
@@ -374,8 +401,8 @@ app.put("/restricciones/:id", async (req, res) => {
         const { id } = req.params
         const { latlngs, type, restriction } = req.body
 
-        console.log("PUT /restricciones/:id - Updating restricción with ID:", id)
-        console.log("Request body:", JSON.stringify(req.body, null, 2))
+        console.log("[v0] PUT /restricciones/:id - Updating restricción with ID:", id)
+        console.log("[v0] Request body:", JSON.stringify(req.body, null, 2))
 
         let geometryWKT
 
@@ -387,19 +414,23 @@ app.put("/restricciones/:id", async (req, res) => {
             }
             const ringWKT = ring.map((point) => `${point.lng} ${point.lat}`).join(", ")
             geometryWKT = `POLYGON((${ringWKT}))`
-            console.log("Generated WKT:", geometryWKT)
+            console.log("[v0] Generated WKT:", geometryWKT)
         }
 
         const sql =
             "UPDATE mapeado SET type = $1, geometry = ST_Multi(ST_GeomFromText($2, 4326)), restriccion = $3 WHERE id = $4"
         const VALUES = [type, geometryWKT, restriction, id]
 
+        console.log("[v0] SQL:", sql)
+        console.log("[v0] VALUES:", VALUES)
+
         await pool.query(sql, VALUES)
 
-        console.log("Restricción updated successfully with ID:", id)
+        console.log("[v0] Restricción updated successfully with ID:", id)
         res.json({ success: true, message: "Restricción actualizada" })
     } catch (err) {
-        console.error("Error updating restricción:", err.message)
+        console.error("[v0] Error updating restricción:", err.message)
+        console.error("[v0] Full error:", err)
         res.status(500).json({ message: "Error updating restricción", error: err.message })
     }
 })
@@ -408,16 +439,20 @@ app.put("/restricciones/:id", async (req, res) => {
 app.delete("/restricciones/:id", async (req, res) => {
     try {
         const { id } = req.params
-        console.log("DELETE /restricciones/:id - Deleting restricción with ID:", id)
+        console.log("[v0] DELETE /restricciones/:id - Deleting restricción with ID:", id)
 
         const sql = "DELETE FROM mapeado WHERE id = $1"
 
+        console.log("[v0] SQL:", sql)
+        console.log("[v0] ID:", id)
+
         await pool.query(sql, [id])
 
-        console.log("Restricción deleted successfully with ID:", id)
+        console.log("[v0] Restricción deleted successfully with ID:", id)
         res.json({ success: true, message: "Restricción eliminada" })
     } catch (err) {
-        console.error("Error deleting restricción:", err.message)
+        console.error("[v0] Error deleting restricción:", err.message)
+        console.error("[v0] Full error:", err)
         res.status(500).json({ message: "Error deleting restricción", error: err.message })
     }
 })
@@ -633,7 +668,7 @@ app.get("/api/estadisticas", async (req, res) => {
 
         const heatmapCallesResult = await pool.query(heatmapCallesQuery)
 
-        console.log("Heatmap calles result rows:", heatmapCallesResult.rows.length)
+        console.log("[v0] Heatmap calles result rows:", heatmapCallesResult.rows.length)
 
         const heatmapData = heatmapCallesResult.rows.map((row) => {
             let latlngs = []
@@ -653,7 +688,7 @@ app.get("/api/estadisticas", async (req, res) => {
                 console.error("Error parsing geometry JSON:", e)
             }
 
-            console.log("Polyline:", { id: row.id, nombre: row.nombre, latlngs_count: latlngs.length })
+            console.log("[v0] Polyline:", { id: row.id, nombre: row.nombre, latlngs_count: latlngs.length })
 
             return {
                 id: row.id,
@@ -671,7 +706,7 @@ app.get("/api/estadisticas", async (req, res) => {
             color: getColorByIntensity(item.intensidad),
         }))
 
-        console.log("Polylines mock count:", polylinesMock.length)
+        console.log("[v0] Polylines mock count:", polylinesMock.length)
 
         // Datos para zonas de calor (destinos más frecuentes)
         const zonasHeatmapQuery = `
@@ -718,7 +753,7 @@ app.get("/api/estadisticas", async (req, res) => {
 
         const trayectoriasResult = await pool.query(trayectoriasQuery)
 
-        console.log("Trayectorias result rows:", trayectoriasResult.rows.length)
+        console.log("[v0] Trayectorias result rows:", trayectoriasResult.rows.length)
 
         const trayectoriasMock = trayectoriasResult.rows.map((row) => {
             let ruta = []
@@ -743,7 +778,7 @@ app.get("/api/estadisticas", async (req, res) => {
                 ]
             }
 
-            console.log("Trayectoria:", { id: row.id, ruta_length: ruta.length })
+            console.log("[v0] Trayectoria:", { id: row.id, ruta_length: ruta.length })
 
             return {
                 id: row.id,
@@ -763,6 +798,8 @@ app.get("/api/estadisticas", async (req, res) => {
                 distancia: `${Number.parseFloat(row.distancia_km).toFixed(1)} km`,
             }
         })
+
+        console.log("[v0] Trayectorias mock count:", trayectoriasMock.length)
 
         // Datos para gráfico de encontró estacionamiento por día
         const encontroEstacionamientoQuery = `
@@ -1009,7 +1046,7 @@ app.get("/api/estadisticas", async (req, res) => {
                         : "0",
             },
             regresionHoraExito,
-            regresionTotalCompletados, // Agregando la nueva regresión a la respuesta
+            regresionTotalCompletados, 
         })
     } catch (error) {
         console.error("Error obteniendo estadísticas:", error)

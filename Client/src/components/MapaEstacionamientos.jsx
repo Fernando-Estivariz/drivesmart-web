@@ -7,9 +7,20 @@ import "leaflet/dist/leaflet.css"
 import "leaflet-draw/dist/leaflet.draw.css"
 import axios from "axios"
 import {
-    MdLocationOn, MdEdit, MdDelete, MdWarning, MdClose, MdCheck,
-    MdLocalParking, MdDoNotDisturb, MdDirectionsBus, MdAccessible,
-    MdLocalShipping, MdLocalPolice, MdElectricCar, MdSearch, MdAdjust
+    MdLocationOn,
+    MdEdit,
+    MdDelete,
+    MdWarning,
+    MdClose,
+    MdCheck,
+    MdLocalParking,
+    MdDoNotDisturb,
+    MdDirectionsBus,
+    MdAccessible,
+    MdLocalShipping,
+    MdLocalPolice,
+    MdElectricCar,
+    MdAdjust,
 } from "react-icons/md"
 
 const MapaEstacionamientos = () => {
@@ -75,35 +86,35 @@ const MapaEstacionamientos = () => {
                 const response = await axios.get(`${process.env.REACT_APP_API_URL}/mapeado`, common)
                 const data = response.data.filter((layer) => layer.type === "polyline")
 
-                console.log("===== FETCH DATA DEBUG =====")
-                console.log("Total layers received:", response.data.length)
-                console.log("Polyline layers:", data.length)
-                console.log("First 5 layers:", data.slice(0, 5))
+                console.log("[v0] ===== FETCH DATA DEBUG =====")
+                console.log("[v0] Total layers received:", response.data.length)
+                console.log("[v0] Polyline layers:", data.length)
+                console.log("[v0] First 5 layers:", data.slice(0, 5))
 
                 const allIds = data.map((l) => l.id)
-                console.log("All IDs:", allIds)
+                console.log("[v0] All IDs:", allIds)
 
                 const validIds = allIds.filter((id) => id != null && !isNaN(id))
-                console.log("Valid IDs:", validIds)
-                console.log("Valid IDs count:", validIds.length)
+                console.log("[v0] Valid IDs:", validIds)
+                console.log("[v0] Valid IDs count:", validIds.length)
 
                 const maxId = validIds.length > 0 ? Math.max(...validIds) : 6385
                 const nextId = maxId + 1
 
-                console.log("Max ID found:", maxId)
-                console.log("Next ID will be:", nextId)
-                console.log("===== END FETCH DATA DEBUG =====")
+                console.log("[v0] Max ID found:", maxId)
+                console.log("[v0] Next ID will be:", nextId)
+                console.log("[v0] ===== END FETCH DATA DEBUG =====")
 
                 nextDbIdRef.current = nextId
 
                 setMapLayers(data)
 
-                console.log("Loaded layers:", data.length)
-                console.log("Valid IDs count:", validIds.length)
-                console.log("Max ID found:", maxId)
-                console.log("Next ID will be:", nextId)
+                console.log("[v0] Loaded layers:", data.length)
+                console.log("[v0] Valid IDs count:", validIds.length)
+                console.log("[v0] Max ID found:", maxId)
+                console.log("[v0] Next ID will be:", nextId)
             } catch (error) {
-                console.error("Error fetching estacionamientos:", error)
+                console.error("[v0] Error fetching estacionamientos:", error)
             } finally {
                 setIsLoading(false)
             }
@@ -117,7 +128,7 @@ const MapaEstacionamientos = () => {
         const map = mapRef.current
 
         const handleEditStart = async () => {
-            console.log("Edit mode activated")
+            console.log("[v0] Edit mode activated")
             setIsEditMode(true)
 
             const totalLayers = mapLayers.filter((layer) => filter === "Todos" || layer.restriction === filter).length
@@ -141,7 +152,7 @@ const MapaEstacionamientos = () => {
         }
 
         const handleEditStop = () => {
-            console.log("Edit mode deactivated")
+            console.log("[v0] Edit mode deactivated")
             setIsEditMode(false)
             setEditRenderLimit(null)
         }
@@ -178,7 +189,7 @@ const MapaEstacionamientos = () => {
 
                 if (matchingLayer) {
                     newMapping[layer._leaflet_id] = matchingLayer.id
-                    console.log("Mapped Leaflet ID", layer._leaflet_id, "to DB ID", matchingLayer.id)
+                    console.log("[v0] Mapped Leaflet ID", layer._leaflet_id, "to DB ID", matchingLayer.id)
                 }
             })
             setLeafletIdToDbId(newMapping)
@@ -188,11 +199,11 @@ const MapaEstacionamientos = () => {
     const handleCreate = (e) => {
         const { layer } = e
 
-        //console.log("===== CREATE DEBUG =====")
-        //console.log("Current nextDbId:", nextDbIdRef.current)
-        //console.log("nextDbId type:", typeof nextDbIdRef.current)
-        //console.log("nextDbId is null?", nextDbIdRef.current === null)
-        //console.log("nextDbId is NaN?", isNaN(nextDbIdRef.current))
+        console.log("[v0] ===== CREATE DEBUG =====")
+        console.log("[v0] Current nextDbId:", nextDbIdRef.current)
+        console.log("[v0] nextDbId type:", typeof nextDbIdRef.current)
+        console.log("[v0] nextDbId is null?", nextDbIdRef.current === null)
+        console.log("[v0] nextDbId is NaN?", isNaN(nextDbIdRef.current))
 
         const newLayer = {
             id: nextDbIdRef.current,
@@ -201,8 +212,8 @@ const MapaEstacionamientos = () => {
             restriction: null,
         }
 
-        console.log("New layer created:", newLayer)
-        console.log("===== END CREATE DEBUG =====")
+        console.log("[v0] New layer created:", newLayer)
+        console.log("[v0] ===== END CREATE DEBUG =====")
 
         setCurrentLayer(newLayer)
         setModal(true)
@@ -318,7 +329,7 @@ const MapaEstacionamientos = () => {
     }
 
     const handleLineClick = (layer) => {
-        console.log("Line clicked:", layer)
+        console.log("[v0] Line clicked:", layer)
         setSelectedLayer(layer)
         setEditModal(true)
         setIsEditingLine(false)
@@ -345,7 +356,7 @@ const MapaEstacionamientos = () => {
                 if (leafletLayer.editing) {
                     leafletLayer.editing.enable()
                     setEditableLineRef(leafletLayer)
-                    console.log("Editing enabled for layer:", selectedLayer.id)
+                    console.log("[v0] Editing enabled for layer:", selectedLayer.id)
                 }
             }
         })
@@ -382,9 +393,9 @@ const MapaEstacionamientos = () => {
             setIsEditingLine(false)
             setEditableLineRef(null)
 
-            console.log("Line updated successfully:", selectedLayer.id)
+            console.log("[v0] Line updated successfully:", selectedLayer.id)
         } catch (error) {
-            console.error("Error updating line:", error)
+            console.error("[v0] Error updating line:", error)
             alert("Error al actualizar la línea: " + (error.response?.data?.message || error.message))
         } finally {
             setIsLoading(false)
@@ -412,9 +423,9 @@ const MapaEstacionamientos = () => {
             setIsEditingLine(false)
             setEditableLineRef(null)
 
-            console.log("Line deleted successfully:", selectedLayer.id)
+            console.log("[v0] Line deleted successfully:", selectedLayer.id)
         } catch (error) {
-            console.error("Error deleting line:", error)
+            console.error("[v0] Error deleting line:", error)
             alert("Error al eliminar la línea: " + (error.response?.data?.message || error.message))
         } finally {
             setIsLoading(false)
@@ -428,18 +439,25 @@ const MapaEstacionamientos = () => {
         }
 
         if (nextDbIdRef.current === null || isNaN(nextDbIdRef.current)) {
-            console.error("Invalid ID:", nextDbIdRef.current)
+            console.error("[v0] Invalid ID:", nextDbIdRef.current)
             alert("Error: ID inválido. Por favor recarga la página.")
             return
         }
 
         setIsLoading(true)
         try {
-            console.log("Saving new estacionamiento:", currentLayer)
+            const payload = {
+                id: currentLayer.id || nextDbIdRef.current,
+                latlngs: currentLayer.latlngs,
+                type: currentLayer.type,
+                restriction: currentLayer.restriction,
+            }
 
-            const response = await axios.post(`${process.env.REACT_APP_API_URL}/mapeado`, currentLayer, common)
+            console.log("[v0] Saving new estacionamiento with payload:", payload)
 
-            console.log("Response:", response.data)
+            const response = await axios.post(`${process.env.REACT_APP_API_URL}/mapeado`, payload, common)
+
+            console.log("[v0] Response:", response.data)
 
             setMapLayers((prev) => [...prev, currentLayer])
 
@@ -448,7 +466,8 @@ const MapaEstacionamientos = () => {
             setModal(false)
             setCurrentLayer(null)
         } catch (error) {
-            console.error("Error saving estacionamiento:", error)
+            console.error("[v0] Error saving estacionamiento:", error)
+            console.error("[v0] Error details:", error.response?.data)
             alert("Error al guardar el estacionamiento: " + (error.response?.data?.message || error.message))
         } finally {
             setIsLoading(false)
@@ -740,20 +759,13 @@ const MapaEstacionamientos = () => {
                                         </select>
                                     </div>
 
-                                    <button
-                                        style={styles.editPositionButton}
-                                        onClick={enableLineEditing}
-                                    >
+                                    <button style={styles.editPositionButton} onClick={enableLineEditing}>
                                         <MdAdjust size={20} /> Ajustar Posición de la Línea
                                     </button>
                                 </div>
 
                                 <div style={styles.modalActions}>
-                                    <button
-                                        style={styles.deleteButton}
-                                        onClick={deleteSelectedLine}
-                                        disabled={isLoading}
-                                    >
+                                    <button style={styles.deleteButton} onClick={deleteSelectedLine} disabled={isLoading}>
                                         <MdDelete size={20} /> Eliminar
                                     </button>
                                     <button
