@@ -713,114 +713,7 @@ export default function Estadisticas() {
                         />
                     </div>
 
-                    {/* Gráficos de barras */}
-                    <div style={styles.chartsGrid}>
-                        {/* Viajes por día de la semana */}
-                        <div style={styles.chartCard}>
-                            <div style={styles.chartHeader}>
-                                <div style={styles.chartTitleContainer}>
-                                    <HiCalendar size={20} style={{ color: "#3b82f6" }} />
-                                    <h3 style={styles.chartTitle}>Viajes por Día de la Semana</h3>
-                                </div>
-                            </div>
-
-                            <div style={styles.chartFilters}>
-                                <select
-                                    value={selectedMonthWeekly}
-                                    onChange={(e) => handleMonthWeeklyChange(e.target.value)}
-                                    style={styles.filterSelect}
-                                >
-                                    <option value="all">Todos los meses</option>
-                                    <option value="1">Enero</option>
-                                    <option value="2">Febrero</option>
-                                    <option value="3">Marzo</option>
-                                    <option value="4">Abril</option>
-                                    <option value="5">Mayo</option>
-                                    <option value="6">Junio</option>
-                                    <option value="7">Julio</option>
-                                    <option value="8">Agosto</option>
-                                    <option value="9">Septiembre</option>
-                                    <option value="10">Octubre</option>
-                                    <option value="11">Noviembre</option>
-                                    <option value="12">Diciembre</option>
-                                </select>
-
-                                <select
-                                    value={selectedWeekWeekly}
-                                    onChange={(e) => handleWeekWeeklyChange(e.target.value)}
-                                    style={styles.filterSelect}
-                                >
-                                    <option value="all">Todas las semanas</option>
-                                    <option value="1">Semana 1</option>
-                                    <option value="2">Semana 2</option>
-                                    <option value="3">Semana 3</option>
-                                    <option value="4">Semana 4</option>
-                                    <option value="5">Semana 5</option>
-                                </select>
-                            </div>
-
-                            <div style={styles.chartContent}>
-                                {viajesPorDia.map((item) => (
-                                    <div key={item.dia} style={styles.barContainer}>
-                                        <span style={styles.barLabel}>{item.dia}</span>
-                                        <div style={styles.barWrapper}>
-                                            <div
-                                                style={{
-                                                    ...styles.bar,
-                                                    width: `${(item.viajes / maxViajesDia) * 100}%`,
-                                                    background: "linear-gradient(90deg, #3b82f6, #60a5fa)",
-                                                }}
-                                            >
-                                                <span style={styles.barValue}>{item.viajes}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Viajes por mes */}
-                        <div style={styles.chartCard}>
-                            <div style={styles.chartHeader}>
-                                <div style={styles.chartTitleContainer}>
-                                    <HiArrowTrendingUp size={20} style={{ color: "#10b981" }} />
-                                    <h3 style={styles.chartTitle}>Viajes por Mes</h3>
-                                </div>
-                            </div>
-
-                            <div style={styles.chartFilters}>
-                                <select
-                                    value={selectedYearMonthly}
-                                    onChange={(e) => handleYearMonthlyChange(e.target.value)}
-                                    style={styles.filterSelect}
-                                >
-                                    <option value="2025">2025</option>
-                                    <option value="2024">2024</option>
-                                    <option value="2023">2023</option>
-                                    <option value="2022">2022</option>
-                                </select>
-                            </div>
-
-                            <div style={styles.chartContent}>
-                                {viajesPorMes.map((item) => (
-                                    <div key={item.mes} style={styles.barContainer}>
-                                        <span style={styles.barLabel}>{item.mes}</span>
-                                        <div style={styles.barWrapper}>
-                                            <div
-                                                style={{
-                                                    ...styles.bar,
-                                                    width: `${(item.viajes / maxViajesMes) * 100}%`,
-                                                    background: "linear-gradient(90deg, #10b981, #34d399)",
-                                                }}
-                                            >
-                                                <span style={styles.barValue}>{item.viajes}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                    
 
                     <div style={styles.chartCard}>
                         <div style={styles.chartHeader}>
@@ -1267,7 +1160,7 @@ export default function Estadisticas() {
                             <div style={styles.chartHeader}>
                                 <div style={styles.chartTitleContainer}>
                                     <HiMapPin size={20} style={{ color: "#ef4444" }} />
-                                    <h3 style={styles.chartTitle}>Mapa de Calor de Estacionamientos</h3>
+                                    <h3 style={styles.chartTitle}>Mapa de Estacionamientos</h3>
                                 </div>
                                 <p style={styles.chartSubtitle}>
                                     {heatmapView === "calles"
@@ -1290,15 +1183,7 @@ export default function Estadisticas() {
                                     >
                                         Vista por Calles
                                     </button>
-                                    <button
-                                        onClick={() => setHeatmapView("zonas")}
-                                        style={{
-                                            ...styles.toggleButton,
-                                            ...(heatmapView === "zonas" ? styles.toggleButtonActive : {}),
-                                        }}
-                                    >
-                                        Vista por Zonas
-                                    </button>
+                                    
                                     <button
                                         onClick={() => setHeatmapView("trayectorias")}
                                         style={{
