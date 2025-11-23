@@ -145,20 +145,12 @@ app.get("/mapeado", async (req, res) => {
 })
 
 //INSERTAR
-app.post("/mapeado", (req, res) => {
-    const { id, latlngs, type, restriction } = req.body
+app.post("/mapeado", async (req, res) => {
+    const { latlngs, type, restriction } = req.body
 
     console.log("[v0] POST /mapeado - Received body:", JSON.stringify(req.body))
-    console.log("[v0] ID:", id, "Type:", type, "Restriction:", restriction)
+    console.log("[v0] Type:", type, "Restriction:", restriction)
     console.log("[v0] Latlngs:", latlngs)
-
-    if (!id || id === null || isNaN(id)) {
-        console.error("[v0] Invalid ID received:", id)
-        return res.status(400).json({
-            message: "ID inválido o faltante",
-            error: "El ID debe ser un número válido",
-        })
-    }
 
     if (!latlngs || (Array.isArray(latlngs) && latlngs.length === 0)) {
         console.error("[v0] Missing or empty latlngs")
@@ -168,13 +160,17 @@ app.post("/mapeado", (req, res) => {
         })
     }
 
-    console.log("[v0] Inserting new mapeado with ID:", id, "Type:", type, "Restriction:", restriction)
-
-    let geometryWKT
-
     try {
+        const maxIdResult = await pool.query("SELECT COALESCE(MAX(id), 0) as max_id FROM mapeado")
+        const maxId = Number.parseInt(maxIdResult.rows[0].max_id)
+        const nextId = maxId + 1
+
+        console.log("[v0] Calculated next ID from database:", nextId)
+        console.log("[v0] Inserting new mapeado with ID:", nextId, "Type:", type, "Restriction:", restriction)
+
+        let geometryWKT
+
         if (type === "polyline") {
-            // 👈 FIX: soportar tanto [{lat, lng}] como [[lat, lng]]
             const coords = (latlngs || []).map((point) => {
                 if (Array.isArray(point)) {
                     const [lat, lng] = point
@@ -190,7 +186,6 @@ app.post("/mapeado", (req, res) => {
 
             geometryWKT = `LINESTRING(${coords.map((p) => `${p.lng} ${p.lat}`).join(", ")})`
         } else if (type === "polygon") {
-            // Asegurarse de que el primer y último punto sean iguales
             const ring = latlngs[0]
             if (ring[0].lat !== ring[ring.length - 1].lat || ring[0].lng !== ring[ring.length - 1].lng) {
                 ring.push(ring[0])
@@ -198,31 +193,23 @@ app.post("/mapeado", (req, res) => {
             const ringWKT = ring.map((point) => `${point.lng} ${point.lat}`).join(", ")
             geometryWKT = `POLYGON((${ringWKT}))`
         } else if (type === "marker") {
-            const { lat, lng } = latlngs[0] // Para el marcador, se espera un array con un solo objeto { lat, lng }
+            const { lat, lng } = latlngs[0]
             geometryWKT = `POINT(${lng} ${lat})`
         }
 
         console.log("[v0] Generated WKT:", geometryWKT)
-    } catch (wktError) {
-        console.error("[v0] Error generating WKT:", wktError.message)
-        return res.status(400).json({
-            message: "Error al procesar coordenadas",
-            error: wktError.message,
-        })
+
+        const sql =
+            "INSERT INTO public.mapeado (id, type, geometry, restriccion) VALUES ($1, $2, ST_Multi(ST_GeomFromText($3, 4326)), $4) RETURNING *"
+        const VALUES = [nextId, type, geometryWKT, restriction]
+
+        const result = await pool.query(sql, VALUES)
+        console.log("[v0] Mapeado inserted successfully with ID:", nextId)
+        return res.json({ success: true, message: "Data saved successfully", id: nextId, data: result.rows[0] })
+    } catch (err) {
+        console.error("[v0] Error in POST /mapeado:", err.message)
+        return res.status(500).json({ message: "Error saving data", error: err.message })
     }
-
-    const sql =
-        "INSERT INTO public.mapeado (id, type, geometry, restriccion) VALUES ($1, $2, ST_Multi(ST_GeomFromText($3, 4326)), $4)"
-    const VALUES = [id, type, geometryWKT, restriction]
-
-    pool.query(sql, VALUES, (err, data) => {
-        if (err) {
-            console.error("[v0] Error inserting mapeado:", err.message)
-            return res.status(500).json({ message: "Error saving data", error: err.message })
-        }
-        console.log("[v0] Mapeado inserted successfully with ID:", id)
-        return res.json({ success: true, message: "Data saved successfully", id: id })
-    })
 })
 
 //EDITAR
@@ -240,7 +227,6 @@ app.put("/mapeado/:id", async (req, res) => {
         let geometryWKT
 
         if (type === "polyline") {
-            // 👈 FIX: soportar [{lat, lng}] y [[lat, lng]]
             const coords = (latlngs || []).map((point) => {
                 if (Array.isArray(point)) {
                     const [lat, lng] = point
@@ -256,7 +242,6 @@ app.put("/mapeado/:id", async (req, res) => {
 
             geometryWKT = `LINESTRING(${coords.map((p) => `${p.lng} ${p.lat}`).join(", ")})`
         } else if (type === "polygon") {
-            // Asegurarse de que el primer y último punto sean iguales
             const ring = latlngs[0]
             if (ring[0].lat !== ring[ring.length - 1].lat || ring[0].lng !== ring[ring.length - 1].lng) {
                 ring.push(ring[0])
@@ -321,12 +306,10 @@ app.get("/restricciones", async (req, res) => {
         console.log("[v0] Found", result.rows.length, "restricciones")
 
         const restricciones = result.rows.map((row) => {
-            // Convertir geometría de GeoJSON a formato latlngs
             let latlngs
             const geojson = JSON.parse(row.geometry)
 
             if (row.type === "polygon") {
-                // Para polígonos: coordinates[0][0] contiene el anillo exterior
                 latlngs = geojson.coordinates[0][0].map((coord) => ({ lat: coord[1], lng: coord[0] }))
             }
 
@@ -347,52 +330,56 @@ app.get("/restricciones", async (req, res) => {
 })
 
 //CREAR NUEVA RESTRICCIÓN
-app.post("/restricciones", (req, res) => {
-    const { id, latlngs, type, restriction } = req.body
+app.post("/restricciones", async (req, res) => {
+    const { latlngs, type, restriction } = req.body
 
     console.log("[v0] POST /restricciones - Request body:", JSON.stringify(req.body, null, 2))
-    console.log("[v0] ID:", id, "Type:", type, "Restriction:", restriction)
+    console.log("[v0] Type:", type, "Restriction:", restriction)
     console.log("[v0] Latlngs:", JSON.stringify(latlngs, null, 2))
 
-    if (!id || id === null || isNaN(id)) {
-        console.error("[v0] Invalid ID received:", id)
+    if (!latlngs || (Array.isArray(latlngs) && latlngs.length === 0)) {
+        console.error("[v0] Missing or empty latlngs")
         return res.status(400).json({
-            message: "ID inválido o faltante",
-            error: "El ID debe ser un número válido",
+            message: "Coordenadas faltantes",
+            error: "Se requieren coordenadas válidas",
         })
     }
 
-    console.log("[v0] Inserting new restricción with ID:", id, "Type:", type, "Restriction:", restriction)
+    try {
+        const maxIdResult = await pool.query("SELECT COALESCE(MAX(id), 0) as max_id FROM mapeado")
+        const maxId = Number.parseInt(maxIdResult.rows[0].max_id)
+        const nextId = maxId + 1
 
-    let geometryWKT
+        console.log("[v0] Calculated next ID from database:", nextId)
+        console.log("[v0] Inserting new restricción with ID:", nextId, "Type:", type, "Restriction:", restriction)
 
-    if (type === "polygon") {
-        // Asegurarse de que el primer y último punto sean iguales
-        const ring = latlngs
-        if (ring[0].lat !== ring[ring.length - 1].lat || ring[0].lng !== ring[ring.length - 1].lng) {
-            ring.push(ring[0])
+        let geometryWKT
+
+        if (type === "polygon") {
+            const ring = latlngs
+            if (ring[0].lat !== ring[ring.length - 1].lat || ring[0].lng !== ring[ring.length - 1].lng) {
+                ring.push(ring[0])
+            }
+            const ringWKT = ring.map((point) => `${point.lng} ${point.lat}`).join(", ")
+            geometryWKT = `POLYGON((${ringWKT}))`
+            console.log("[v0] Generated WKT:", geometryWKT)
         }
-        const ringWKT = ring.map((point) => `${point.lng} ${point.lat}`).join(", ")
-        geometryWKT = `POLYGON((${ringWKT}))`
-        console.log("[v0] Generated WKT:", geometryWKT)
+
+        const sql =
+            "INSERT INTO mapeado (id, type, geometry, restriccion) VALUES ($1, $2, ST_Multi(ST_GeomFromText($3, 4326)), $4) RETURNING *"
+        const VALUES = [nextId, type, geometryWKT, restriction]
+
+        console.log("[v0] SQL:", sql)
+        console.log("[v0] VALUES:", VALUES)
+
+        const result = await pool.query(sql, VALUES)
+        console.log("[v0] Restricción inserted successfully with ID:", nextId)
+        return res.json({ success: true, message: "Restricción saved successfully", id: nextId, data: result.rows[0] })
+    } catch (err) {
+        console.error("[v0] Error inserting restricción:", err.message)
+        console.error("[v0] Full error:", err)
+        res.status(500).json({ message: "Error saving restricción", error: err.message })
     }
-
-    const sql =
-        "INSERT INTO mapeado (id, type, geometry, restriccion) VALUES ($1, $2, ST_Multi(ST_GeomFromText($3, 4326)), $4)"
-    const VALUES = [id, type, geometryWKT, restriction]
-
-    console.log("[v0] SQL:", sql)
-    console.log("[v0] VALUES:", VALUES)
-
-    pool.query(sql, VALUES, (err, data) => {
-        if (err) {
-            console.error("[v0] Error inserting restricción:", err.message)
-            console.error("[v0] Full error:", err)
-            return res.status(500).json({ message: "Error saving restricción", error: err.message })
-        }
-        console.log("[v0] Restricción inserted successfully with ID:", id)
-        return res.json({ success: true, message: "Restricción saved successfully", id: id })
-    })
 })
 
 //EDITAR RESTRICCIÓN EXISTENTE
@@ -407,7 +394,6 @@ app.put("/restricciones/:id", async (req, res) => {
         let geometryWKT
 
         if (type === "polygon") {
-            // Asegurarse de que el primer y último punto sean iguales
             const ring = latlngs
             if (ring[0].lat !== ring[ring.length - 1].lat || ring[0].lng !== ring[ring.length - 1].lng) {
                 ring.push(ring[0])
@@ -462,7 +448,6 @@ app.get("/api/estadisticas", async (req, res) => {
     try {
         const { year, month, week } = req.query
 
-        // Construir filtros de fecha si se proporcionan
         let dateFilter = ""
         if (year) {
             dateFilter += ` AND EXTRACT(YEAR FROM inicio_en) = ${year}`
@@ -493,7 +478,6 @@ app.get("/api/estadisticas", async (req, res) => {
         const statsResult = await pool.query(statsQuery)
         const stats = statsResult.rows[0]
 
-        // 1. Tasa de Éxito General (basada en estado)
         const tasaExitoGeneralQuery = `
             SELECT 
                 COUNT(*) as total_viajes,
@@ -506,7 +490,6 @@ app.get("/api/estadisticas", async (req, res) => {
         const tasaExitoGeneralResult = await pool.query(tasaExitoGeneralQuery)
         const tasaExitoGeneral = tasaExitoGeneralResult.rows[0]
 
-        // 2. Tasa de Éxito en Destino Deseado (basada en encontro_estacionamiento)
         const tasaExitoDestinoQuery = `
             SELECT 
                 COUNT(*) as total_viajes,
@@ -519,7 +502,6 @@ app.get("/api/estadisticas", async (req, res) => {
         const tasaExitoDestinoResult = await pool.query(tasaExitoDestinoQuery)
         const tasaExitoDestino = tasaExitoDestinoResult.rows[0]
 
-        // 3. Tasa de Éxito de Georeferenciación (basada en encontro_lugar_busqueda)
         const tasaExitoGeoQuery = `
             SELECT 
                 COUNT(*) as viajes_que_necesitaron_geo,
@@ -543,11 +525,8 @@ app.get("/api/estadisticas", async (req, res) => {
         const evolucionTasasQuery = `
             SELECT 
                 DATE(inicio_en) as fecha,
-                -- Tasa General
                 (COUNT(CASE WHEN estado = 'completado' THEN 1 END)::float / NULLIF(COUNT(*), 0) * 100) as tasa_general,
-                -- Tasa Destino
                 (COUNT(CASE WHEN encontro_estacionamiento = true OR encontro_estacionamiento IS NULL THEN 1 END)::float / NULLIF(COUNT(*), 0) * 100) as tasa_destino,
-                -- Tasa Georeferenciación (solo para los que necesitaron geo)
                 (COUNT(CASE 
                     WHEN encontro_estacionamiento = false 
                     AND (encontro_lugar_busqueda = true OR encontro_lugar_busqueda IS NULL) 
@@ -570,9 +549,8 @@ app.get("/api/estadisticas", async (req, res) => {
                 destino: Number.parseFloat(row.tasa_destino || 0).toFixed(1),
                 georeferenciacion: Number.parseFloat(row.tasa_georeferenciacion || 0).toFixed(1),
             }))
-            .reverse() // Invertir para mostrar de más antiguo a más reciente
+            .reverse()
 
-        // Consulta para viajes por día de la semana
         const weeklyQuery = `
             SELECT 
                 EXTRACT(DOW FROM inicio_en) as dia_semana,
@@ -586,7 +564,6 @@ app.get("/api/estadisticas", async (req, res) => {
 
         const weeklyResult = await pool.query(weeklyQuery)
 
-        // Convertir a array de 7 días (Lunes=0, Domingo=6)
         const viajesPorDia = [
             { dia: "Lun", viajes: 0 },
             { dia: "Mar", viajes: 0 },
@@ -598,15 +575,12 @@ app.get("/api/estadisticas", async (req, res) => {
         ]
 
         weeklyResult.rows.forEach((row) => {
-            // PostgreSQL: 0=Domingo, 1=Lunes, ..., 6=Sábado
-            // Convertir a: 0=Lunes, 1=Martes, ..., 6=Domingo
             const diaIndex = row.dia_semana === "0" ? 6 : Number.parseInt(row.dia_semana) - 1
             if (diaIndex >= 0 && diaIndex < 7) {
                 viajesPorDia[diaIndex].viajes = Number.parseInt(row.cantidad)
             }
         })
 
-        // Consulta para viajes por mes (últimos 12 meses)
         const monthlyQuery = `
             SELECT 
                 EXTRACT(MONTH FROM inicio_en) as mes_num,
@@ -633,7 +607,6 @@ app.get("/api/estadisticas", async (req, res) => {
             }
         })
 
-        // Top 5 calles más usadas
         const topCallesQuery = `
             SELECT 
                 calle_estacionamiento as nombre,
@@ -675,13 +648,10 @@ app.get("/api/estadisticas", async (req, res) => {
             try {
                 const geojson = JSON.parse(row.geometry_json)
                 if (geojson.type === "MultiLineString" && geojson.coordinates) {
-                    // MultiLineString: [[lng, lat], [lng, lat]]
                     latlngs = geojson.coordinates[0].map((coord) => [coord[1], coord[0]])
                 } else if (geojson.type === "LineString" && geojson.coordinates) {
-                    // LineString: [lng, lat]
                     latlngs = geojson.coordinates.map((coord) => [coord[1], coord[0]])
                 } else if (geojson.type === "Point" && geojson.coordinates) {
-                    // Point: [lng, lat]
                     latlngs = [[geojson.coordinates[1], geojson.coordinates[0]]]
                 }
             } catch (e) {
@@ -708,7 +678,6 @@ app.get("/api/estadisticas", async (req, res) => {
 
         console.log("[v0] Polylines mock count:", polylinesMock.length)
 
-        // Datos para zonas de calor (destinos más frecuentes)
         const zonasHeatmapQuery = `
             SELECT 
                 ST_Y(destino) as lat,
@@ -770,7 +739,6 @@ app.get("/api/estadisticas", async (req, res) => {
                 }
             }
 
-            // Si no hay ruta, crear una línea recta entre origen y destino
             if (ruta.length === 0) {
                 ruta = [
                     [Number.parseFloat(row.origen_lat), Number.parseFloat(row.origen_lng)],
@@ -801,7 +769,6 @@ app.get("/api/estadisticas", async (req, res) => {
 
         console.log("[v0] Trayectorias mock count:", trayectoriasMock.length)
 
-        // Datos para gráfico de encontró estacionamiento por día
         const encontroEstacionamientoQuery = `
             SELECT 
                 EXTRACT(DOW FROM inicio_en) as dia_semana,
@@ -958,18 +925,15 @@ app.get("/api/estadisticas", async (req, res) => {
             ecuacion: "",
         }
 
-        // Calcular regresión lineal que pasa por (0,0)
         if (regresionTotalCompletadosData.length >= 2) {
             const n = regresionTotalCompletadosData.length
 
-            // Regresión forzada a pasar por (0,0): y = mx (sin intercepto)
             const sumXY = regresionTotalCompletadosData.reduce((sum, d) => sum + d.totalViajes * d.viajesCompletados, 0)
             const sumX2 = regresionTotalCompletadosData.reduce((sum, d) => sum + d.totalViajes * d.totalViajes, 0)
 
             const pendiente = sumXY / sumX2
-            const intercepto = 0 // Forzado a 0
+            const intercepto = 0
 
-            // Calcular R²
             const yMean = regresionTotalCompletadosData.reduce((sum, d) => sum + d.viajesCompletados, 0) / n
             const ssTotal = regresionTotalCompletadosData.reduce((sum, d) => sum + (d.viajesCompletados - yMean) ** 2, 0)
             const ssResidual = regresionTotalCompletadosData.reduce((sum, d) => {
@@ -982,12 +946,11 @@ app.get("/api/estadisticas", async (req, res) => {
                 datos: regresionTotalCompletadosData,
                 pendiente: Number.parseFloat(pendiente.toFixed(4)),
                 intercepto: 0,
-                r2: Number.parseFloat(Math.max(0, r2).toFixed(4)), // Asegurar que R² no sea negativo
+                r2: Number.parseFloat(Math.max(0, r2).toFixed(4)),
                 ecuacion: `y = ${pendiente.toFixed(2)}x`,
             }
         }
 
-        // Respuesta final
         res.json({
             success: true,
             stats: {
@@ -1046,7 +1009,7 @@ app.get("/api/estadisticas", async (req, res) => {
                         : "0",
             },
             regresionHoraExito,
-            regresionTotalCompletados, 
+            regresionTotalCompletados,
         })
     } catch (error) {
         console.error("Error obteniendo estadísticas:", error)

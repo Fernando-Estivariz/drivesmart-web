@@ -446,9 +446,16 @@ const MapaEstacionamientos = () => {
 
         setIsLoading(true)
         try {
+            const formattedLatLngs = currentLayer.latlngs.map((point) => {
+                if (Array.isArray(point)) {
+                    return point // Already in [lat, lng] format
+                }
+                return [point.lat, point.lng] // Convert from {lat, lng} to [lat, lng]
+            })
+
             const payload = {
                 id: currentLayer.id || nextDbIdRef.current,
-                latlngs: currentLayer.latlngs,
+                latlngs: formattedLatLngs,
                 type: currentLayer.type,
                 restriction: currentLayer.restriction,
             }
@@ -459,7 +466,11 @@ const MapaEstacionamientos = () => {
 
             console.log("[v0] Response:", response.data)
 
-            setMapLayers((prev) => [...prev, currentLayer])
+            const newLayerForState = {
+                ...currentLayer,
+                latlngs: formattedLatLngs,
+            }
+            setMapLayers((prev) => [...prev, newLayerForState])
 
             nextDbIdRef.current = nextDbIdRef.current + 1
 
